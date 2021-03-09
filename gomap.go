@@ -54,16 +54,7 @@ func PrintIPResults(results IPScanResult) {
 
 func PrintRangeResults(results RangeScanResult) {
 	for _, r := range results.all {
-		ip := r.ip[len(r.ip)-1]
-		fmt.Printf("Host: %s (%s)\n", r.hostname, ip.String())
-
-		fmt.Printf("\t|     %s	%s\n", "Port", "Service")
-		fmt.Printf("\t|     %s	%s\n", "----", "-------")
-		for _, v := range r.results {
-			if v.State {
-				fmt.Printf("\t|---- %d	%s\n", v.Port, v.Service)
-			}
-		}
+		PrintIPResults(r)
 		fmt.Println(" ")
 	}
 }
