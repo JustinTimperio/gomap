@@ -2,6 +2,7 @@ package gomap
 
 import (
 	"encoding/binary"
+	"fmt"
 	"log"
 	"net"
 	"strconv"
@@ -10,13 +11,13 @@ import (
 	"time"
 )
 
-func scanIPRange(proto string) (RangeScanResult, error) {
+func scanIPRange(proto string, fastscan bool) (RangeScanResult, error) {
 	var results []IPScanResult
-	iprange := GetLocalRange()
+	iprange := getLocalRange()
 	hosts := createHostRange(iprange)
 
 	for _, h := range hosts {
-		scan, err := scanIPPorts(h, proto)
+		scan, err := scanIPPorts(h, proto, fastscan)
 
 		if err != nil {
 			continue
@@ -28,32 +29,53 @@ func scanIPRange(proto string) (RangeScanResult, error) {
 	return rangeScan, nil
 }
 
-func scanIPPorts(hostname string, proto string) (IPScanResult, error) {
+func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, error) {
 	var (
 		results []portResult
 		scanned IPScanResult
 		wg      sync.WaitGroup
-		start   = 0
-		end     = 50000
+		start   int
+		end     int
 	)
 
+	// checks if device is online
 	addr, err := net.LookupIP(hostname)
 	if err != nil {
 		return scanned, err
 	}
 
-	// gets devices name
+	// gets device name
 	hname, err := net.LookupAddr(hostname)
 	if err != nil {
 		return scanned, err
 	}
 
+	fmt.Printf("\033[2K\rScanning Host: %s", hostname)
+
+	if fastscan {
+		start = 0
+		end = 50000
+	} else {
+		start = 0
+		end = 50000
+	}
+
 	// opens pool of connections
 	resultChannel := make(chan portResult, end-start)
-	for i := start; i <= end; i++ {
-		if service, ok := common[i]; ok {
-			wg.Add(1)
-			go scanPort(proto, hostname, service, i, resultChannel, &wg)
+
+	if fastscan {
+		for i := start; i <= end; i++ {
+			if service, ok := commonlist[i]; ok {
+				wg.Add(1)
+				go scanPort(proto, hostname, service, i, resultChannel, &wg, fastscan)
+			}
+		}
+	} else {
+		for i := start; i <= end; i++ {
+			if service, ok := detailedlist[i]; ok {
+				wg.Add(1)
+				go scanPort(proto, hostname, service, i, resultChannel, &wg, fastscan)
+			}
 		}
 	}
 
@@ -72,13 +94,14 @@ func scanIPPorts(hostname string, proto string) (IPScanResult, error) {
 	return scanned, nil
 }
 
-func scanPort(protocol, hostname, service string, port int, resultChannel chan portResult, wg *sync.WaitGroup) {
+func scanPort(protocol, hostname, service string, port int, resultChannel chan portResult, wg *sync.WaitGroup, fastscan bool) {
 	defer wg.Done()
 
+	timeout := 1 * time.Second
 	result := portResult{Port: port, Service: service}
 	address := hostname + ":" + strconv.Itoa(port)
 
-	conn, err := net.DialTimeout(protocol, address, 1*time.Second)
+	conn, err := net.DialTimeout(protocol, address, timeout)
 	if err != nil {
 		result.State = false
 		resultChannel <- result
@@ -111,8 +134,8 @@ func createHostRange(netw string) []string {
 	return hosts
 }
 
-// GetLocalRange returns local ip range or defaults on error to most common
-func GetLocalRange() string {
+// GetLocalRange returns local ip range or defaults on error to most commonlist
+func getLocalRange() string {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		return "192.168.1.0/24"

@@ -7,7 +7,8 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	results := gomap.ScanRange()
+	fastscan := false
+	results := gomap.ScanRange(fastscan)
 	gomap.PrintRangeResults(results)
 
 }

@@ -13,7 +13,7 @@ Gomap is a fully self-contained nmap like module for Golang. Unlike other projec
   - Parallel port scanning using go routines
   - Automated CIDR range scanning
   - Service perdiction by port number
-  - Fast scanning for common ports only
+  - Fast and detailed scanning for common ports
   - Pure Go with zero dependencies
   - Easily integrated into other projects
 
@@ -27,7 +27,8 @@ Gomap is a fully self-contained nmap like module for Golang. Unlike other projec
    )
 
    func main() {
-		scan := gomap.ScanRange()
+    fastscan := true
+		scan := gomap.ScanRange(fastscan)
 		gomap.PrintRangeResults(scan)
 	 }
 ```
@@ -54,5 +55,8 @@ Host: server-minio (192.168.1.112)
         |     Port      Service
         |     ----      -------
         |---- 22        ssh
+
+Host: some-phone (192.168.1.155)
+        |- No Open Ports
  
 ```
