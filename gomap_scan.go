@@ -34,8 +34,9 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 		results []portResult
 		scanned IPScanResult
 		wg      sync.WaitGroup
-		start   int
-		end     int
+		start   = 0
+		end     = 50000
+		conc    int
 	)
 
 	// checks if device is online
@@ -53,15 +54,13 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 	fmt.Printf("\033[2K\rScanning Host: %s", hostname)
 
 	if fastscan {
-		start = 0
-		end = 50000
+		conc = 1000
 	} else {
-		start = 0
-		end = 50000
+		conc = 4000
 	}
 
 	// opens pool of connections
-	resultChannel := make(chan portResult, end-start)
+	resultChannel := make(chan portResult, conc)
 
 	if fastscan {
 		for i := start; i <= end; i++ {
@@ -97,7 +96,7 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 func scanPort(protocol, hostname, service string, port int, resultChannel chan portResult, wg *sync.WaitGroup, fastscan bool) {
 	defer wg.Done()
 
-	timeout := 1 * time.Second
+	timeout := 10 * time.Second
 	result := portResult{Port: port, Service: service}
 	address := hostname + ":" + strconv.Itoa(port)
 
