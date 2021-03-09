@@ -3,6 +3,7 @@
 ![GitHub](https://img.shields.io/github/license/JustinTimperio/gomap)
 [![Go Reference](https://pkg.go.dev/badge/github.com/JustinTimperio/gomap.svg)](https://pkg.go.dev/github.com/JustinTimperio/gomap)
 [![Go Report Card](https://goreportcard.com/badge/github.com/JustinTimperio/gomap)](https://goreportcard.com/report/github.com/JustinTimperio/gomap)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/47e878568ce04a819e82af10d3734062)](https://www.codacy.com/gh/JustinTimperio/gomap/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=JustinTimperio/gomap&amp;utm_campaign=Badge_Grade)
 
 ## What is gomap?
 Gomap is a fully self-contained nmap like module for Golang. Unlike other projects which provide nmap bindings or rely on other local dependencies, gomap is a fully implemented in Go. Since this is a small library, it only focuses on providing a few core features for applications that require a completely embedded solution. 
