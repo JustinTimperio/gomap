@@ -45,29 +45,27 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 
 	// gets device name
 	hname, err := net.LookupAddr(hostname)
-	if err != nil {
-		return scanned, err
-	}
 
-	fmt.Printf("\033[2K\rScanning Host: %s", hostname)
-
-	// find number of fields for channel
 	if fastscan {
+		if err != nil {
+			return scanned, err
+		}
 		tasks = len(commonlist)
 	} else {
+		if err != nil {
+			hname = append(hname, "Unknown")
+		}
 		tasks = len(detailedlist)
 	}
 
 	// opens pool of connections
 	resultChannel := make(chan portResult, tasks)
-
 	if fastscan {
 		for i := start; i <= end; i++ {
 			if service, ok := commonlist[i]; ok {
 				go scanPort(resultChannel, proto, hostname, service, i, fastscan)
 			}
 		}
-
 	} else {
 		for i := start; i <= end; i++ {
 			if service, ok := detailedlist[i]; ok {
@@ -79,11 +77,13 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 	// Wait for routines to finish
 	for {
 		if len(resultChannel) == tasks {
+			close(resultChannel)
 			break
+		} else {
+			fmt.Printf("\033[2K\rHost: %s | Ports Scanned %d/%d", hostname, len(resultChannel), tasks)
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
-
-	close(resultChannel)
 
 	for result := range resultChannel {
 		results = append(results, result)
@@ -97,23 +97,38 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 	return scanned, nil
 }
 
+// scanPort scans a single ip port combo
 func scanPort(resultChannel chan<- portResult, protocol, hostname, service string, port int, fastscan bool) {
 
-	timeout := 5 * time.Second
+	dialTimeout := 5 * time.Second
 	result := portResult{Port: port, Service: service}
 	address := hostname + ":" + strconv.Itoa(port)
 
-	conn, err := net.DialTimeout(protocol, address, timeout)
-	if err != nil {
+	scanResult := make(chan bool, 1)
+	funcTimeout := make(chan bool, 1)
+
+	go func() {
+		time.Sleep(5 * time.Second)
+		funcTimeout <- true
+	}()
+
+	go func() {
+		conn, err := net.DialTimeout(protocol, address, dialTimeout)
+		if err != nil {
+			scanResult <- false
+		}
+		conn.Close()
+		scanResult <- true
+	}()
+
+	select {
+	case res := <-scanResult:
+		result.State = res
+		resultChannel <- result
+	case <-funcTimeout:
 		result.State = false
 		resultChannel <- result
-		return
 	}
-
-	defer conn.Close()
-	result.State = true
-	resultChannel <- result
-	return
 }
 
 func createHostRange(netw string) []string {
@@ -136,7 +151,7 @@ func createHostRange(netw string) []string {
 	return hosts
 }
 
-// GetLocalRange returns local ip range or defaults on error to most commonlist
+// getLocalRange returns local ip range or defaults on error to most common
 func getLocalRange() string {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {

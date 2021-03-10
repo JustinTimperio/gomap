@@ -64,8 +64,8 @@ func PrintIPResults(results IPScanResult) {
 				fmt.Printf("\t|---- %d	%s\n", v.Port, v.Service)
 			}
 		}
-	} else {
-		fmt.Printf("\t|- No Open Ports\n")
+	} else if results.hostname != "Unknown" {
+		fmt.Printf("\t|---- %s\n", "No Open Ports Found")
 	}
 }
 
