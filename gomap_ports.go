@@ -49,11 +49,17 @@ var commonlist = map[int]string{
 	8080:  "https-proxy",
 	8443:  "https-alt",
 	9200:  "elasticsearch",
-	24800: "synergy",
 	25565: "minecraft",
 }
 
 var detailedlist = map[int]string{
+
+	// Custom Ports
+	5550:  "vnc server",
+	5938:  "teamviewer",
+	25565: "minecraft",
+	24800: "synergy",
+
 	0:     "Reserved",
 	1:     "Port Service Multiplexer",
 	2:     "Management Utility",
@@ -2774,7 +2780,6 @@ var detailedlist = map[int]string{
 	5520:  "ACE/Server Services",
 	5530:  "ACE/Server Services",
 	5540:  "ACE/Server Services",
-	5550:  "ACE/Server Services / Xtcp 2.0x",
 	5554:  "Sasser Worm FTP backdoor / SGI ESP HTTP",
 	5555:  "Personal Agent / W32.Mimail.P@mm",
 	5556:  "Mtbd (mtb backup)",
@@ -3319,6 +3324,4 @@ var detailedlist = map[int]string{
 	65000: "distributed attack tool / Devil (Windows Trojan)",
 	65301: "pcAnywhere-def",
 	65506: "PhatBot, Agobot, Gaobot (Windows trojans)",
-
-	25565: "minecraft",
 }
