@@ -7,7 +7,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -31,12 +30,11 @@ func scanIPRange(proto string, fastscan bool) (RangeScanResult, error) {
 
 func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, error) {
 	var (
-		results     []portResult
-		scanned     IPScanResult
-		wg          sync.WaitGroup
-		start       = 0
-		end         = 50000
-		concurrency = 5000
+		results []portResult
+		scanned IPScanResult
+		tasks   int
+		start   = 0
+		end     = 50000
 	)
 
 	// checks if device is online
@@ -51,27 +49,40 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 		return scanned, err
 	}
 
-	// opens pool of connections
 	fmt.Printf("\033[2K\rScanning Host: %s", hostname)
-	resultChannel := make(chan portResult, concurrency)
+
+	// find number of fields for channel
+	if fastscan {
+		tasks = len(commonlist)
+	} else {
+		tasks = len(detailedlist)
+	}
+
+	// opens pool of connections
+	resultChannel := make(chan portResult, tasks)
 
 	if fastscan {
 		for i := start; i <= end; i++ {
 			if service, ok := commonlist[i]; ok {
-				wg.Add(1)
-				go scanPort(proto, hostname, service, i, resultChannel, &wg, fastscan)
+				go scanPort(resultChannel, proto, hostname, service, i, fastscan)
 			}
 		}
+
 	} else {
 		for i := start; i <= end; i++ {
 			if service, ok := detailedlist[i]; ok {
-				wg.Add(1)
-				go scanPort(proto, hostname, service, i, resultChannel, &wg, fastscan)
+				go scanPort(resultChannel, proto, hostname, service, i, fastscan)
 			}
 		}
 	}
 
-	wg.Wait()
+	// Wait for routines to finish
+	for {
+		if len(resultChannel) == tasks {
+			break
+		}
+	}
+
 	close(resultChannel)
 
 	for result := range resultChannel {
@@ -86,8 +97,7 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 	return scanned, nil
 }
 
-func scanPort(protocol, hostname, service string, port int, resultChannel chan portResult, wg *sync.WaitGroup, fastscan bool) {
-	defer wg.Done()
+func scanPort(resultChannel chan<- portResult, protocol, hostname, service string, port int, fastscan bool) {
 
 	timeout := 5 * time.Second
 	result := portResult{Port: port, Service: service}

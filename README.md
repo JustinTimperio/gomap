@@ -27,9 +27,9 @@ Gomap is a fully self-contained nmap like module for Golang. Unlike other projec
    )
 
    func main() {
-    fastscan := true
-		scan := gomap.ScanRange(fastscan)
-		gomap.PrintRangeResults(scan)
+      fastscan := true
+      scan := gomap.ScanRange(fastscan)
+      gomap.PrintRangeResults(scan)
 	 }
 ```
  2. `go mod init`
