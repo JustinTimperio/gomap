@@ -1,6 +1,7 @@
 package gomap_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/JustinTimperio/gomap"
@@ -9,10 +10,8 @@ import (
 func TestMain(m *testing.M) {
 	fastscan := true
 	results := gomap.ScanRange(fastscan)
-	gomap.PrintRangeResults(results)
-	//
-	// fastscan := false
 	// results := gomap.ScanIP("192.168.1.120", fastscan)
-	// gomap.PrintIPResults(results)
+
+	fmt.Printf(results.String())
 
 }
