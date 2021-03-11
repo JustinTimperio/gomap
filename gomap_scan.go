@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"strconv"
 	"strings"
@@ -99,36 +100,25 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 
 // scanPort scans a single ip port combo
 func scanPort(resultChannel chan<- portResult, protocol, hostname, service string, port int, fastscan bool) {
+	// randomizes when scan occurs
+	r := rand.Intn(500)
+	time.Sleep(time.Duration(r) * time.Microsecond)
 
-	dialTimeout := 5 * time.Second
+	timeout := 4 * time.Second
 	result := portResult{Port: port, Service: service}
 	address := hostname + ":" + strconv.Itoa(port)
 
-	scanResult := make(chan bool, 1)
-	funcTimeout := make(chan bool, 1)
-
-	go func() {
-		time.Sleep(5 * time.Second)
-		funcTimeout <- true
-	}()
-
-	go func() {
-		conn, err := net.DialTimeout(protocol, address, dialTimeout)
-		if err != nil {
-			scanResult <- false
-		}
-		conn.Close()
-		scanResult <- true
-	}()
-
-	select {
-	case res := <-scanResult:
-		result.State = res
-		resultChannel <- result
-	case <-funcTimeout:
+	conn, err := net.DialTimeout(protocol, address, timeout)
+	if err != nil {
 		result.State = false
 		resultChannel <- result
+		return
 	}
+
+	defer conn.Close()
+	result.State = true
+	resultChannel <- result
+	return
 }
 
 func createHostRange(netw string) []string {
