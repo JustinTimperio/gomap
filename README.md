@@ -31,6 +31,7 @@ func main() {
       	scan := gomap.ScanRange(fastscan)
       	gomap.PrintRangeResults(scan)
 }
+
 ```
  2. `go mod init`
  3. `go mod tidy`

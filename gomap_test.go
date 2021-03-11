@@ -7,10 +7,10 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	fastscan := false
+	fastscan := true
 	results := gomap.ScanRange(fastscan)
 	gomap.PrintRangeResults(results)
-
+	//
 	// fastscan := false
 	// results := gomap.ScanIP("192.168.1.120", fastscan)
 	// gomap.PrintIPResults(results)
