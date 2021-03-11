@@ -20,17 +20,17 @@ Gomap is a fully self-contained nmap like module for Golang. Unlike other projec
 ## Example Usage
  1. Create `quickscan.go`
 ```go
-   package main
+ package main
 
-   import (
-	   "github.com/JustinTimperio/gomap"
-   )
+ import (
+   "github.com/JustinTimperio/gomap"
+ )
 
-   func main() {
-      fastscan := true
-      scan := gomap.ScanRange(fastscan)
-      gomap.PrintRangeResults(scan)
-	 }
+ func main() {
+    fastscan := true
+    scan := gomap.ScanRange(fastscan)
+    gomap.PrintRangeResults(scan)
+ }
 ```
  2. `go mod init`
  3. `go mod tidy`

@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+// scanIPRange scans an entire cidr range for open ports
+// I am fairly happy with this code since its just iterating
+// over scanIPPorts. Most issue are deeper in the code.
 func scanIPRange(proto string, fastscan bool) (RangeScanResult, error) {
 	var results []IPScanResult
 	iprange := getLocalRange()
@@ -18,17 +21,16 @@ func scanIPRange(proto string, fastscan bool) (RangeScanResult, error) {
 
 	for _, h := range hosts {
 		scan, err := scanIPPorts(h, proto, fastscan)
-
 		if err != nil {
 			continue
 		}
-
 		results = append(results, scan)
 	}
 	rangeScan := RangeScanResult{all: results}
 	return rangeScan, nil
 }
 
+// scanIPPorts scans a list of ports on <hostname> <protocol>
 func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, error) {
 	var (
 		results []portResult
@@ -44,14 +46,18 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 		return scanned, err
 	}
 
-	// gets device name
+	// This gets the device name. (for linux '/etc/hostname')
+	// This is typically a good indication of if a host is 'up'
+	// but can provide false-negatives in certain situations.
+	// For this reason when in fastscan mode, devices without
+	// names are ignored but are fully scanned in slowmode.
 	hname, err := net.LookupAddr(hostname)
-
 	if fastscan {
 		if err != nil {
 			return scanned, err
 		}
 		tasks = len(commonlist)
+
 	} else {
 		if err != nil {
 			hname = append(hname, "Unknown")
@@ -59,7 +65,10 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 		tasks = len(detailedlist)
 	}
 
-	// opens pool of connections
+	// Opens pool of connections to crawl ports
+	// This process sadly results in large number of false-negatives
+	// due to timeouts when scanning a large number of ports at once.
+	// I am open to new solutions to this brick of code
 	resultChannel := make(chan portResult, tasks)
 	if fastscan {
 		for i := start; i <= end; i++ {
@@ -75,17 +84,21 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 		}
 	}
 
-	// Wait for routines to finish
+	// This waits for all routines to finish.
+	// Overall this has been more performant than wait-groups
+	// and it allows for an active counter to display progress
 	for {
 		if len(resultChannel) == tasks {
 			close(resultChannel)
 			break
 		} else {
 			fmt.Printf("\033[2K\rHost: %s | Ports Scanned %d/%d", hostname, len(resultChannel), tasks)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(1000 * time.Millisecond)
 		}
 	}
 
+	// Combines all results from resultChannel and
+	// returns a IPScanResult struct
 	for result := range resultChannel {
 		results = append(results, result)
 	}
@@ -100,15 +113,18 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 
 // scanPort scans a single ip port combo
 func scanPort(resultChannel chan<- portResult, protocol, hostname, service string, port int, fastscan bool) {
-	// randomizes when scan occurs
+	// To deal with host overloading this proccess waits a
+	// random amount of time before moving on.
+	// This spaces out the execution of all the go routines by a few milliseconds
 	r := rand.Intn(500)
 	time.Sleep(time.Duration(r) * time.Microsecond)
 
-	timeout := 4 * time.Second
+	// Dials a port with a timeout
+	// This only works on some types of services
+	// but is a reasonable solution for this application
 	result := portResult{Port: port, Service: service}
 	address := hostname + ":" + strconv.Itoa(port)
-
-	conn, err := net.DialTimeout(protocol, address, timeout)
+	conn, err := net.DialTimeout(protocol, address, 5*time.Second)
 	if err != nil {
 		result.State = false
 		resultChannel <- result
@@ -121,6 +137,7 @@ func scanPort(resultChannel chan<- portResult, protocol, hostname, service strin
 	return
 }
 
+// createHostRange converts a input ip addr string to a slice of ips on the cidr
 func createHostRange(netw string) []string {
 	_, ipv4Net, err := net.ParseCIDR(netw)
 	if err != nil {

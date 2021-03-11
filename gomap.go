@@ -26,7 +26,6 @@ type RangeScanResult struct {
 // ScanIP scans a single IP for open ports
 func ScanIP(hostname string, fastscan bool) IPScanResult {
 	ipScan, err := scanIPPorts(hostname, "tcp", fastscan)
-
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -36,7 +35,6 @@ func ScanIP(hostname string, fastscan bool) IPScanResult {
 // ScanRange scans every address on a CIDR for open ports
 func ScanRange(fastscan bool) RangeScanResult {
 	rangeScan, err := scanIPRange("tcp", fastscan)
-
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -55,7 +53,6 @@ func PrintIPResults(results IPScanResult) {
 			break
 		}
 	}
-
 	if active {
 		fmt.Printf("\t|     %s	%s\n", "Port", "Service")
 		fmt.Printf("\t|     %s	%s\n", "----", "-------")
