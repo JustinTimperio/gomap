@@ -124,7 +124,7 @@ func scanPort(resultChannel chan<- portResult, protocol, hostname, service strin
 	// but is a reasonable solution for this application
 	result := portResult{Port: port, Service: service}
 	address := hostname + ":" + strconv.Itoa(port)
-	conn, err := net.DialTimeout(protocol, address, 5*time.Second)
+	conn, err := net.DialTimeout(protocol, address, 3*time.Second)
 	if err != nil {
 		result.State = false
 		resultChannel <- result
