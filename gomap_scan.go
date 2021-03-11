@@ -13,7 +13,7 @@ import (
 
 // scanIPRange scans an entire cidr range for open ports
 // I am fairly happy with this code since its just iterating
-// over scanIPPorts. Most issue are deeper in the code.
+// over scanIPPorts. Most issues are deeper in the code.
 func scanIPRange(proto string, fastscan bool) (RangeScanResult, error) {
 	var results []IPScanResult
 	iprange := getLocalRange()
@@ -46,9 +46,9 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 		return scanned, err
 	}
 
-	// This gets the device name. (for linux '/etc/hostname')
+	// This gets the device name. ('/etc/hostname')
 	// This is typically a good indication of if a host is 'up'
-	// but can provide false-negatives in certain situations.
+	// but can cause false-negatives in certain situations.
 	// For this reason when in fastscan mode, devices without
 	// names are ignored but are fully scanned in slowmode.
 	hname, err := net.LookupAddr(hostname)
@@ -66,7 +66,7 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 	}
 
 	// Opens pool of connections to crawl ports
-	// This process sadly results in large number of false-negatives
+	// This process results in a large number of false-negatives
 	// due to timeouts when scanning a large number of ports at once.
 	// I am open to new solutions to this brick of code
 	resultChannel := make(chan portResult, tasks)
