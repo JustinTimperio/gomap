@@ -28,8 +28,8 @@ import (
 
 func main() {
 	fastscan := true
-  scan := gomap.ScanRange(fastscan)
-  fmt.Printf(scan.String())
+ 	scan := gomap.ScanRange(fastscan)
+ 	fmt.Printf(scan.String())
 }
 
 ```
