@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
-	"math/rand"
 	"net"
 	"strconv"
 	"strings"
@@ -66,19 +65,34 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 	}
 
 	// Opens pool of connections to crawl ports
-	// This process results in a large number of false-negatives
-	// due to timeouts when scanning a large number of ports at once.
+	// After 3 failed semaphore implementations I settled on a less
+	// generic piece of code that launches routines in batches then waits
 	// I am open to new solutions to this brick of code
 	resultChannel := make(chan portResult, tasks)
 	if fastscan {
 		for i := start; i <= end; i++ {
 			if service, ok := commonlist[i]; ok {
+				if i%100 == 0 {
+					fmt.Printf("\033[2K\rHost: %s | Ports Scanned %d/%d", hostname, len(resultChannel), tasks)
+				}
+				// Spaces out goroutines slightly
+				if i%25 == 0 {
+					time.Sleep(50 * time.Millisecond)
+				}
 				go scanPort(resultChannel, proto, hostname, service, i, fastscan)
 			}
 		}
+
 	} else {
 		for i := start; i <= end; i++ {
 			if service, ok := detailedlist[i]; ok {
+				if i%100 == 0 {
+					fmt.Printf("\033[2K\rHost: %s | Ports Scanned %d/%d", hostname, len(resultChannel), tasks)
+				}
+				// Spaces out goroutines slightly
+				if i%25 == 0 {
+					time.Sleep(50 * time.Millisecond)
+				}
 				go scanPort(resultChannel, proto, hostname, service, i, fastscan)
 			}
 		}
@@ -93,7 +107,7 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 			break
 		} else {
 			fmt.Printf("\033[2K\rHost: %s | Ports Scanned %d/%d", hostname, len(resultChannel), tasks)
-			time.Sleep(1000 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 
@@ -113,14 +127,7 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 
 // scanPort scans a single ip port combo
 func scanPort(resultChannel chan<- portResult, protocol, hostname, service string, port int, fastscan bool) {
-	// To deal with host overloading this proccess waits a
-	// random amount of time before moving on.
-	// This spaces out the execution of all the go routines by a few milliseconds
-	r := rand.Intn(500)
-	time.Sleep(time.Duration(r) * time.Microsecond)
-
-	// Dials a port with a timeout
-	// This only works on some types of services
+	// This detection method only works on some types of services
 	// but is a reasonable solution for this application
 	result := portResult{Port: port, Service: service}
 	address := hostname + ":" + strconv.Itoa(port)
