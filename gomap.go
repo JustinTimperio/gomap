@@ -20,35 +20,26 @@ type IPScanResult struct {
 }
 
 // RangeScanResult contains multiple IPScanResults
-type RangeScanResult struct {
-	all []IPScanResult
-}
+type RangeScanResult []*IPScanResult
 
 // ScanIP scans a single IP for open ports
-func ScanIP(hostname string, fastscan bool) IPScanResult {
-	ipScan, err := scanIPPorts(hostname, "tcp", fastscan)
-	if err != nil {
-		fmt.Println(err)
-	}
-	return ipScan
+func ScanIP(hostname string, fastscan bool) (*IPScanResult, error) {
+	return scanIPPorts(hostname, "tcp", fastscan)
 }
 
 // ScanRange scans every address on a CIDR for open ports
-func ScanRange(fastscan bool) RangeScanResult {
-	rangeScan, err := scanIPRange("tcp", fastscan)
-	if err != nil {
-		fmt.Println(err)
-	}
-	return rangeScan
+func ScanRange(fastscan bool) (RangeScanResult, error) {
+	return scanIPRange("tcp", fastscan)
 }
 
-// Provides a string that prints the results of a single ScanIp
+// String with the results of a single scanned IP
 func (results *IPScanResult) String() string {
 	b := bytes.NewBuffer(nil)
 	ip := results.ip[len(results.ip)-1]
-	b.WriteString(fmt.Sprintf("\nHost: %s (%s)\n", results.hostname, ip.String()))
-	active := false
 
+	fmt.Fprintf(b, "\nHost: %s (%s)\n", results.hostname, ip)
+
+	active := false
 	for _, r := range results.results {
 		if r.State {
 			active = true
@@ -56,25 +47,26 @@ func (results *IPScanResult) String() string {
 		}
 	}
 	if active {
-		b.WriteString(fmt.Sprintf("\t|     %s	%s\n", "Port", "Service"))
-		b.WriteString(fmt.Sprintf("\t|     %s	%s\n", "----", "-------"))
+		fmt.Fprintf(b, "\t|     %s	%s\n", "Port", "Service")
+		fmt.Fprintf(b, "\t|     %s	%s\n", "----", "-------")
 		for _, v := range results.results {
 			if v.State {
-				b.WriteString(fmt.Sprintf("\t|---- %d	%s\n", v.Port, v.Service))
+				fmt.Fprintf(b, "\t|---- %d	%s\n", v.Port, v.Service)
 			}
 		}
 	} else if results.hostname != "Unknown" {
-		b.WriteString(fmt.Sprintf("\t|---- %s\n", "No Open Ports Found"))
+		fmt.Fprintf(b, "\t|---- %s\n", "No Open Ports Found")
 	}
 	return b.String()
 }
 
-// Provides a string that prints the results of a multiple ScanIP's
-func (results *RangeScanResult) String() string {
+// String with the results of multiple scanned IP's
+func (results RangeScanResult) String() string {
 	b := bytes.NewBuffer(nil)
-	for _, r := range results.all {
+	for _, r := range results {
 		ip := r.ip[len(r.ip)-1]
-		b.WriteString(fmt.Sprintf("\nHost: %s (%s)\n", r.hostname, ip.String()))
+
+		fmt.Fprintf(b, "\nHost: %s (%s)\n", r.hostname, ip)
 		active := false
 
 		for _, r := range r.results {
@@ -84,17 +76,17 @@ func (results *RangeScanResult) String() string {
 			}
 		}
 		if active {
-			b.WriteString(fmt.Sprintf("\t|     %s	%s\n", "Port", "Service"))
-			b.WriteString(fmt.Sprintf("\t|     %s	%s\n", "----", "-------"))
+			fmt.Fprintf(b, "\t|     %s	%s\n", "Port", "Service")
+			fmt.Fprintf(b, "\t|     %s	%s\n", "----", "-------")
 			for _, v := range r.results {
 				if v.State {
-					b.WriteString(fmt.Sprintf("\t|---- %d	%s\n", v.Port, v.Service))
+					fmt.Fprintf(b, "\t|---- %d	%s\n", v.Port, v.Service)
 				}
 			}
 		} else if r.hostname != "Unknown" {
-			b.WriteString(fmt.Sprintf("\t|---- %s\n", "No Open Ports Found"))
+			fmt.Fprintf(b, "\t|---- %s\n", "No Open Ports Found")
 		}
-
 	}
+
 	return b.String()
 }
