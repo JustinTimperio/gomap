@@ -14,10 +14,10 @@ import (
 // I am fairly happy with this code since its just iterating
 // over scanIPPorts. Most issues are deeper in the code.
 func scanIPRange(proto string, fastscan bool) (RangeScanResult, error) {
-	var results []IPScanResult
 	iprange := getLocalRange()
 	hosts := createHostRange(iprange)
 
+	var results RangeScanResult
 	for _, h := range hosts {
 		scan, err := scanIPPorts(h, proto, fastscan)
 		if err != nil {
@@ -25,24 +25,18 @@ func scanIPRange(proto string, fastscan bool) (RangeScanResult, error) {
 		}
 		results = append(results, scan)
 	}
-	rangeScan := RangeScanResult{all: results}
-	return rangeScan, nil
+
+	return results, nil
 }
 
 // scanIPPorts scans a list of ports on <hostname> <protocol>
-func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, error) {
-	var (
-		results []portResult
-		scanned IPScanResult
-		tasks   int
-		start   = 0
-		end     = 50000
-	)
+func scanIPPorts(hostname string, proto string, fastscan bool) (*IPScanResult, error) {
+	var results []portResult
 
 	// checks if device is online
 	addr, err := net.LookupIP(hostname)
 	if err != nil {
-		return scanned, err
+		return nil, err
 	}
 
 	// This gets the device name. ('/etc/hostname')
@@ -53,80 +47,63 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (IPScanResult, er
 	hname, err := net.LookupAddr(hostname)
 	if fastscan {
 		if err != nil {
-			return scanned, err
+			return nil, err
 		}
-		tasks = len(commonlist)
-
-	} else {
-		if err != nil {
-			hname = append(hname, "Unknown")
-		}
-		tasks = len(detailedlist)
+	} else if err != nil {
+		hname = append(hname, "Unknown")
 	}
 
-	// Opens pool of connections to crawl ports
-	// After 3 failed semaphore implementations I settled on a less
-	// generic piece of code that launches routines in batches then waits
-	// I am open to new solutions to this brick of code
-	resultChannel := make(chan portResult, tasks)
+	in := make(chan int)
+	go func() {
+		for i := 0; i <= 65535; i++ {
+			in <- i
+		}
+
+		close(in)
+	}()
+
+	var list map[int]string
 	if fastscan {
-		for i := start; i <= end; i++ {
-			if service, ok := commonlist[i]; ok {
-				if i%100 == 0 {
-					fmt.Printf("\033[2K\rHost: %s | Ports Scanned %d/%d", hostname, len(resultChannel), tasks)
-				}
-				// Spaces out goroutines slightly
-				if i%25 == 0 {
-					time.Sleep(50 * time.Millisecond)
-				}
-				go scanPort(resultChannel, proto, hostname, service, i, fastscan)
-			}
-		}
-
+		list = commonlist
 	} else {
-		for i := start; i <= end; i++ {
-			if service, ok := detailedlist[i]; ok {
-				if i%100 == 0 {
-					fmt.Printf("\033[2K\rHost: %s | Ports Scanned %d/%d", hostname, len(resultChannel), tasks)
-				}
-				// Spaces out goroutines slightly
-				if i%25 == 0 {
-					time.Sleep(50 * time.Millisecond)
-				}
-				go scanPort(resultChannel, proto, hostname, service, i, fastscan)
+		list = detailedlist
+	}
+
+	tasks := len(list)
+
+	resultChannel := make(chan portResult, tasks)
+	worker := func() {
+		for port := range in {
+			if service, ok := list[port]; ok {
+				scanPort(resultChannel, proto, hostname, service, port)
 			}
 		}
 	}
 
-	// This waits for all routines to finish.
-	// Overall this has been more performant than wait-groups
-	// and it allows for an active counter to display progress
-	for {
-		if len(resultChannel) == tasks {
-			close(resultChannel)
-			break
-		} else {
-			fmt.Printf("\033[2K\rHost: %s | Ports Scanned %d/%d", hostname, len(resultChannel), tasks)
-			time.Sleep(100 * time.Millisecond)
-		}
+	for i := 0; i < 10; i++ {
+		go worker()
 	}
 
 	// Combines all results from resultChannel and
 	// returns a IPScanResult struct
 	for result := range resultChannel {
 		results = append(results, result)
+		fmt.Printf("\033[2K\rHost: %s | Ports Scanned %d/%d", hostname, len(results), tasks)
+
+		if len(results) == tasks {
+			close(resultChannel)
+		}
 	}
 
-	scanned = IPScanResult{
+	return &IPScanResult{
 		hostname: hname[0],
 		ip:       addr,
 		results:  results,
-	}
-	return scanned, nil
+	}, nil
 }
 
 // scanPort scans a single ip port combo
-func scanPort(resultChannel chan<- portResult, protocol, hostname, service string, port int, fastscan bool) {
+func scanPort(resultChannel chan<- portResult, protocol, hostname, service string, port int) {
 	// This detection method only works on some types of services
 	// but is a reasonable solution for this application
 	result := portResult{Port: port, Service: service}
@@ -141,7 +118,6 @@ func scanPort(resultChannel chan<- portResult, protocol, hostname, service strin
 	defer conn.Close()
 	result.State = true
 	resultChannel <- result
-	return
 }
 
 // createHostRange converts a input ip addr string to a slice of ips on the cidr
