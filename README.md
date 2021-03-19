@@ -13,11 +13,18 @@ Gomap is a fully self-contained nmap like module for Golang. Unlike other projec
   - Parallel port scanning using go routines
   - Automated CIDR range scanning
   - Service perdiction by port number
+  - SYN (Silent) Scanning Mode
   - Fast and detailed scanning for common ports
   - Pure Go with zero dependencies
   - Easily integrated into other projects
 
-## Example Usage
+## Upcoming Features
+  - UDP Scanning
+  - More Known Ports for Detection
+  - Stable Release
+
+## Example Usage - 1
+### Create Files
  1. Create `quickscan.go`
 ```go
 package main
@@ -27,7 +34,9 @@ import (
 	)
 
 func main() {
-	fastscan := true
+	fastscan := true 
+  syn := false
+  proto:= "tcp"
  	scan := gomap.ScanRange(fastscan)
  	fmt.Printf(scan.String())
 }
@@ -37,7 +46,55 @@ func main() {
  3. `go mod tidy`
  4. `go run quickscan.go`
 
-## Example Outputs
+### Example Output
+
+```
+Host: computer-name (192.168.1.132)
+        |     Port      Service
+        |     ----      -------
+        |---- 22        ssh
+ 
+Host: server-nginx (192.168.1.143)
+        |     Port      Service
+        |     ----      -------
+        |---- 443       https
+        |---- 80        http
+        |---- 22        ssh
+ 
+Host: server-minio (192.168.1.112)
+        |     Port      Service
+        |     ----      -------
+        |---- 22        ssh
+
+Host: some-phone (192.168.1.155)
+        |- No Open Ports
+ 
+```
+
+## Example Usage - 2
+### Create Files
+ 1. Create `stealthmap.go`
+```go
+package main
+
+import (
+	"github.com/JustinTimperio/gomap"
+	)
+
+func main() {
+	fastscan := false
+  syn := true
+  proto := "tcp"
+ 	scan := gomap.ScanRange(proto, fastscan, syn)
+ 	fmt.Printf(scan.String())
+}
+
+```
+ 2. `go mod init`
+ 3. `go mod tidy`
+ 4. `go run stealthmap.go`
+
+### Example Output
 
 ```
 Host: computer-name (192.168.1.132)

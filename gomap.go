@@ -23,13 +23,13 @@ type IPScanResult struct {
 type RangeScanResult []*IPScanResult
 
 // ScanIP scans a single IP for open ports
-func ScanIP(hostname string, fastscan bool) (*IPScanResult, error) {
-	return scanIPPorts(hostname, "tcp", fastscan)
+func ScanIP(hostname string, proto string, fastscan bool, stealth bool) (*IPScanResult, error) {
+	return scanIPPorts(hostname, proto, fastscan, stealth)
 }
 
 // ScanRange scans every address on a CIDR for open ports
-func ScanRange(fastscan bool) (RangeScanResult, error) {
-	return scanIPRange("tcp", fastscan)
+func ScanRange(fastscan bool, proto string, stealth bool) (RangeScanResult, error) {
+	return scanIPRange(proto, fastscan, stealth)
 }
 
 // String with the results of a single scanned IP

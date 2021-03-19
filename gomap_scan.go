@@ -13,13 +13,13 @@ import (
 // scanIPRange scans an entire cidr range for open ports
 // I am fairly happy with this code since its just iterating
 // over scanIPPorts. Most issues are deeper in the code.
-func scanIPRange(proto string, fastscan bool) (RangeScanResult, error) {
+func scanIPRange(proto string, fastscan bool, stealth bool) (RangeScanResult, error) {
 	iprange := getLocalRange()
 	hosts := createHostRange(iprange)
 
 	var results RangeScanResult
 	for _, h := range hosts {
-		scan, err := scanIPPorts(h, proto, fastscan)
+		scan, err := scanIPPorts(h, proto, fastscan, stealth)
 		if err != nil {
 			continue
 		}
@@ -30,7 +30,7 @@ func scanIPRange(proto string, fastscan bool) (RangeScanResult, error) {
 }
 
 // scanIPPorts scans a list of ports on <hostname> <protocol>
-func scanIPPorts(hostname string, proto string, fastscan bool) (*IPScanResult, error) {
+func scanIPPorts(hostname string, proto string, fastscan bool, stealth bool) (*IPScanResult, error) {
 	var results []portResult
 
 	// checks if device is online
@@ -53,6 +53,9 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (*IPScanResult, e
 		hname = append(hname, "Unknown")
 	}
 
+	// Creates a pool of go routines to scan every port on
+	// a given host in parrallel. Routines are limited to
+	// 10 workers in parrallel to reduce port flooding
 	in := make(chan int)
 	go func() {
 		for i := 0; i <= 65535; i++ {
@@ -75,7 +78,11 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (*IPScanResult, e
 	worker := func() {
 		for port := range in {
 			if service, ok := list[port]; ok {
-				scanPort(resultChannel, proto, hostname, service, port)
+				if stealth {
+					scanPortSyn(resultChannel, proto, hostname, service, port)
+				} else {
+					scanPort(resultChannel, proto, hostname, service, port)
+				}
 			}
 		}
 	}
@@ -103,11 +110,30 @@ func scanIPPorts(hostname string, proto string, fastscan bool) (*IPScanResult, e
 }
 
 // scanPort scans a single ip port combo
+// This detection method only works on some types of services
+// but is a reasonable solution for this application
 func scanPort(resultChannel chan<- portResult, protocol, hostname, service string, port int) {
-	// This detection method only works on some types of services
-	// but is a reasonable solution for this application
 	result := portResult{Port: port, Service: service}
 	address := hostname + ":" + strconv.Itoa(port)
+	conn, err := net.DialTimeout(protocol, address, 3*time.Second)
+	if err != nil {
+		result.State = false
+		resultChannel <- result
+		return
+	}
+
+	defer conn.Close()
+	result.State = true
+	resultChannel <- result
+}
+
+// scanPort scans a single ip port combo
+// This detection method only works on some types of services
+// but is a reasonable solution for this application
+func scanPortSyn(resultChannel chan<- portResult, protocol, hostname, service string, port int) {
+	result := portResult{Port: port, Service: service}
+	address := hostname + ":" + strconv.Itoa(port)
+
 	conn, err := net.DialTimeout(protocol, address, 3*time.Second)
 	if err != nil {
 		result.State = false
