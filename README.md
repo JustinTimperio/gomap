@@ -14,12 +14,12 @@ Gomap is a fully self-contained nmap like module for Golang. Unlike other projec
   - Automated CIDR range scanning
   - Service perdiction by port number
   - SYN (Silent) Scanning Mode
+  - UDP Scanning (Non-Stealth)
   - Fast and detailed scanning for common ports
   - Pure Go with zero dependencies
   - Easily integrated into other projects
 
 ## Upcoming Features
-  - UDP Scanning
   - More Known Ports for Detection
   - Stable Release
 
@@ -42,7 +42,7 @@ func main() {
 }
 
 ```
- 2. `go mod init`
+ 2. `go mod init quickscan`
  3. `go mod tidy`
  4. `go run quickscan.go`
 
@@ -83,6 +83,7 @@ import (
 
 func main() {
 	fastscan := false
+  // Stealth scans MUST be run as root/admin
   syn := true
   proto := "tcp"
  	scan := gomap.ScanRange(proto, fastscan, syn)
@@ -90,9 +91,9 @@ func main() {
 }
 
 ```
- 2. `go mod init`
+ 2. `go mod init stealthmap`
  3. `go mod tidy`
- 4. `go run stealthmap.go`
+ 4. `sudo go run stealthmap.go`
 
 ### Example Output
 

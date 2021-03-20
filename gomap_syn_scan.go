@@ -3,8 +3,6 @@ package gomap
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -50,31 +48,27 @@ type scanJob struct {
 var stopFlag = make(chan uint8, 1)
 
 func SynTest() {
+	laddr := "192.168.1.100"
+	raddr := "192.168.1.120"
+	minPort, maxPort := 1, 5000
+	fmt.Println("Scanning", raddr, "from ports", minPort, "to", maxPort)
 
 	rate := time.Second / 400
 	throttle := time.Tick(rate)
 	jobs := make(chan *scanJob, 65536)
-	results := make(chan *scanResult, 1000)
+	results := make(chan *scanResult, 5000)
+
 	for w := 0; w < 10; w++ {
 		go worker(w, jobs, throttle, results)
 	}
 
-	ifaceName := flag.String("i", "wlp2s0", "Specify network")
-	remote := flag.String("r", "172.16.0.90", "remote address")
-	portRange := flag.String("p", "1-1024", "port range: -p 1-1024")
-	flag.Parse()
-
-	laddr := InterfaceAddress(*ifaceName)
-	raddr := *remote
-	minPort, maxPort := portSplit(portRange)
-	fmt.Println(laddr, raddr)
-	go func(num int) {
-		for i := 0; i < num; i++ {
+	go func() {
+		for i := 0; i < 10; i++ {
 			recvSynAck(laddr, raddr, results)
 		}
-	}(10)
+	}()
 
-	go func(jobLength int) {
+	go func() {
 		for j := minPort; j < maxPort+1; j++ {
 			s := scanJob{
 				Laddr: laddr,
@@ -85,7 +79,7 @@ func SynTest() {
 			jobs <- &s
 		}
 		jobs <- &scanJob{Stop: 1}
-	}(1024)
+	}()
 
 	for {
 		select {
@@ -109,48 +103,9 @@ func worker(id int, jobs <-chan *scanJob, th <-chan time.Time, results chan<- *s
 	}
 }
 
-func checkError(err error) {
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-//CheckSum test
-func CheckSum(data []byte, src, dst [4]byte) uint16 {
-	pseudoHeader := []byte{
-		src[0], src[1], src[2], src[3],
-		dst[0], dst[1], dst[2], dst[3],
-		0,
-		6,
-		0,
-		byte(len(data)),
-	}
-
-	totalLength := len(pseudoHeader) + len(data)
-	if totalLength%2 != 0 {
-		totalLength++
-	}
-	d := make([]byte, 0, totalLength)
-	d = append(d, pseudoHeader...)
-	d = append(d, data...)
-
-	return ^mySum(d)
-}
-
-func mySum(data []byte) uint16 {
-	var sum uint32
-	for i := 0; i < len(data)-1; i += 2 {
-		sum += uint32(uint16(data[i])<<8 | uint16(data[i+1]))
-	}
-
-	sum = (sum >> 16) + (sum & 0xffff)
-	sum = sum + (sum >> 16)
-	return uint16(sum)
-}
-
 func sendSyn(laddr, raddr string, sport, dport uint16) {
 	conn, err := net.Dial("ip4:tcp", raddr)
-	checkError(err)
+	printError(err)
 	defer conn.Close()
 	op := []TCPOption{
 		TCPOption{
@@ -177,7 +132,7 @@ func sendSyn(laddr, raddr string, sport, dport uint16) {
 	buff := new(bytes.Buffer)
 
 	err = binary.Write(buff, binary.BigEndian, tcpH)
-	checkError(err)
+	printError(err)
 	for i := range op {
 		binary.Write(buff, binary.BigEndian, op[i].Kind)
 		binary.Write(buff, binary.BigEndian, op[i].Length)
@@ -187,8 +142,7 @@ func sendSyn(laddr, raddr string, sport, dport uint16) {
 	binary.Write(buff, binary.BigEndian, [6]byte{})
 
 	data := buff.Bytes()
-	checkSum := CheckSum(data, ipstr2Bytes(laddr), ipstr2Bytes(raddr))
-	//fmt.Printf("CheckSum 0x%X\n", checkSum)
+	checkSum := checkSum(data, ipstr2Bytes(laddr), ipstr2Bytes(raddr))
 	tcpH.ChkSum = checkSum
 
 	buff = new(bytes.Buffer)
@@ -201,17 +155,22 @@ func sendSyn(laddr, raddr string, sport, dport uint16) {
 	binary.Write(buff, binary.BigEndian, [6]byte{})
 	data = buff.Bytes()
 
-	//fmt.Printf("% X\n", data)
 	_, err = conn.Write(data)
-	checkError(err)
+	printError(err)
 }
 
 func recvSynAck(laddr, raddr string, res chan<- *scanResult) error {
 	listenAddr, err := net.ResolveIPAddr("ip4", laddr)
-	checkError(err)
+	if err != nil {
+		return err
+	}
+
 	conn, err := net.ListenIP("ip4:tcp", listenAddr)
+	if err != nil {
+		return err
+	}
 	defer conn.Close()
-	checkError(err)
+
 	for {
 		buff := make([]byte, 1024)
 		_, addr, err := conn.ReadFrom(buff)
@@ -225,10 +184,47 @@ func recvSynAck(laddr, raddr string, res chan<- *scanResult) error {
 
 		var port uint16
 		binary.Read(bytes.NewReader(buff), binary.BigEndian, &port)
+
 		res <- &scanResult{
 			Port:   port,
 			Opened: true,
 		}
+	}
+}
+
+func checkSum(data []byte, src, dst [4]byte) uint16 {
+	pseudoHeader := []byte{
+		src[0], src[1], src[2], src[3],
+		dst[0], dst[1], dst[2], dst[3],
+		0,
+		6,
+		0,
+		byte(len(data)),
+	}
+
+	totalLength := len(pseudoHeader) + len(data)
+	if totalLength%2 != 0 {
+		totalLength++
+	}
+
+	d := make([]byte, 0, totalLength)
+	d = append(d, pseudoHeader...)
+	d = append(d, data...)
+
+	var sum uint32
+	for i := 0; i < len(d)-1; i += 2 {
+		sum += uint32(uint16(d[i])<<8 | uint16(d[i+1]))
+	}
+
+	sum = (sum >> 16) + (sum & 0xffff)
+	sum = sum + (sum >> 16)
+	return ^uint16(sum)
+
+}
+
+func printError(err error) {
+	if err != nil {
+		log.Println(err)
 	}
 }
 
@@ -243,35 +239,4 @@ func ipstr2Bytes(addr string) [4]byte {
 
 func random(min, max int) int {
 	return rand.Intn(max-min) + min
-}
-
-func InterfaceAddress(ifaceName string) string {
-	iface, err := net.InterfaceByName(ifaceName)
-	if err != nil {
-		panic(err)
-	}
-	addr, err := iface.Addrs()
-	if err != nil {
-		panic(err)
-	}
-	addrStr := strings.Split(addr[0].String(), "/")[0]
-	return addrStr
-}
-
-func portSplit(portRange *string) (uint16, uint16) {
-	ports := strings.Split(*portRange, "-")
-	minPort, err := strconv.ParseUint(ports[0], 10, 16)
-	if err != nil {
-		panic(err)
-	}
-	maxPort, err := strconv.ParseUint(ports[1], 10, 16)
-	if err != nil {
-		panic(err)
-	}
-
-	if minPort > maxPort {
-		panic(errors.New("minPort must greater than maxPort"))
-	}
-
-	return uint16(minPort), uint16(maxPort)
 }

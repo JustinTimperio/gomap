@@ -87,12 +87,13 @@ func scanIPPorts(hostname string, proto string, fastscan bool, stealth bool) (*I
 		}
 	}
 
+	// Sets the number of workers
 	for i := 0; i < 10; i++ {
 		go worker()
 	}
 
 	// Combines all results from resultChannel and
-	// returns a IPScanResult struct
+	// returns a IPScanResult strucu
 	for result := range resultChannel {
 		results = append(results, result)
 		fmt.Printf("\033[2K\rHost: %s | Ports Scanned %d/%d", hostname, len(results), tasks)
@@ -127,13 +128,13 @@ func scanPort(resultChannel chan<- portResult, protocol, hostname, service strin
 	resultChannel <- result
 }
 
-// scanPort scans a single ip port combo
-// This detection method only works on some types of services
-// but is a reasonable solution for this application
 func scanPortSyn(resultChannel chan<- portResult, protocol, hostname, service string, port int) {
 	result := portResult{Port: port, Service: service}
 	address := hostname + ":" + strconv.Itoa(port)
 
+	// Ported Code for Syn-Awk Here
+	// Code should be called from `gomap_syn_scan`
+	// Code below can be removed when replaced with new code
 	conn, err := net.DialTimeout(protocol, address, 3*time.Second)
 	if err != nil {
 		result.State = false
