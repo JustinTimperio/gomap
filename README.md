@@ -6,7 +6,7 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/47e878568ce04a819e82af10d3734062)](https://www.codacy.com/gh/JustinTimperio/gomap/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=JustinTimperio/gomap&amp;utm_campaign=Badge_Grade)
 
 ## What is gomap?
-Gomap is a fully self-contained nmap like module for Golang. Unlike other projects which provide nmap bindings or rely on other local dependencies, gomap is a fully implemented in Go. Since this is a small library, it only focuses on providing a few core features for applications that require a completely embedded solution. 
+Gomap is a fully self-contained nmap like module for Golang. Unlike other projects which provide nmap C bindings or rely on other local dependencies, gomap is a fully implemented in pure Go. Gomap imports zero non-core modules making it ideal solution for application that have zero control on the clients operating system. Since this is a small library, it only focuses on providing a few core features for application. For the most part its API is stable with changes being applied to its unexposed internal scanning functions.
 
 
 ## Features
@@ -46,7 +46,6 @@ func main() {
         scan := gomap.ScanRange(proto, fastscan, syn)
         fmt.Printf(scan.String())
 }
-
 ```
  2. `go mod init quickscan`
  3. `go mod tidy`
@@ -74,7 +73,6 @@ Host: server-minio (192.168.1.112)
 
 Host: some-phone (192.168.1.155)
         |- No Open Ports
- 
 ```
 
 ## Example Usage - 2
@@ -103,8 +101,6 @@ func main() {
         scan := gomap.ScanIP(ip, proto, fastscan, syn)
         fmt.Printf(scan.String())
 }
-
-
 ```
  2. `go mod init stealthmap`
  3. `go mod tidy`
@@ -120,5 +116,4 @@ Host: Voyager (192.168.1.120)
         |---- 22        SSH Remote Login Protocol
         |---- 80        World Wide Web HTTP
         |---- 443       HTTP protocol over TLS/SSL
-
 ```
