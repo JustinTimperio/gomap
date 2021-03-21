@@ -31,18 +31,20 @@ Performs a fastscan for the most common ports on every IP on a local range
 package main
 
 import (
-	"github.com/JustinTimperio/gomap"
-	)
+        "fmt"
+
+        "github.com/JustinTimperio/gomap"
+)
 
 func main() {
-  var (
-    proto     = "tcp"
-	  fastscan  = true
-    syn       = false
-  )
+        var (
+                proto    = "tcp"
+                fastscan = true
+                syn      = false
+        )
 
- 	scan := gomap.ScanRange(proto, fastscan, syn)
- 	fmt.Printf(scan.String())
+        scan := gomap.ScanRange(proto, fastscan, syn)
+        fmt.Printf(scan.String())
 }
 
 ```
@@ -84,21 +86,24 @@ Performs a detailed stealth scan on a single IP
 package main
 
 import (
-	"github.com/JustinTimperio/gomap"
-	)
+        "fmt"
+
+        "github.com/JustinTimperio/gomap"
+)
 
 func main() {
-  // Stealth scans MUST be run as root/admin
-  var (
-	  fastscan = false
-    syn = true
-    proto = "tcp"
-    ip = "192.168.1.120"
-  )
+        // Stealth scans MUST be run as root/admin
+        var (
+                fastscan = false
+                syn      = true
+                proto    = "tcp"
+                ip       = "192.168.1.120"
+        )
 
- 	scan := gomap.ScanIP(ip, proto, fastscan, syn)
- 	fmt.Printf(scan.String())
+        scan := gomap.ScanIP(ip, proto, fastscan, syn)
+        fmt.Printf(scan.String())
 }
+
 
 ```
  2. `go mod init stealthmap`
