@@ -4,109 +4,14 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"log"
 	"math/rand"
 	"net"
-	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
-//TCPHeader test
-type TCPHeader struct {
-	SrcPort       uint16
-	DstPort       uint16
-	SeqNum        uint32
-	AckNum        uint32
-	Flags         uint16
-	Window        uint16
-	ChkSum        uint16
-	UrgentPointer uint16
-}
-
-//TCPOption test
-type TCPOption struct {
-	Kind   uint8
-	Length uint8
-	Data   []byte
-}
-
-type scanResult struct {
-	Port   uint16
-	Opened bool
-}
-
-type scanJob struct {
-	Laddr string
-	Raddr string
-	SPort uint16
-	DPort uint16
-	Stop  uint8
-}
-
-var stopFlag = make(chan uint8, 1)
-
-func SynTest() {
-	laddr := "192.168.1.100"
-	raddr := "192.168.1.120"
-	minPort, maxPort := 1, 5000
-	fmt.Println("Scanning", raddr, "from ports", minPort, "to", maxPort)
-
-	rate := time.Second / 400
-	throttle := time.Tick(rate)
-	jobs := make(chan *scanJob, 65536)
-	results := make(chan *scanResult, 5000)
-
-	for w := 0; w < 10; w++ {
-		go worker(w, jobs, throttle, results)
-	}
-
-	go func() {
-		for i := 0; i < 10; i++ {
-			recvSynAck(laddr, raddr, results)
-		}
-	}()
-
-	go func() {
-		for j := minPort; j < maxPort+1; j++ {
-			s := scanJob{
-				Laddr: laddr,
-				Raddr: raddr,
-				SPort: uint16(random(10000, 65535)),
-				DPort: uint16(j + 1),
-			}
-			jobs <- &s
-		}
-		jobs <- &scanJob{Stop: 1}
-	}()
-
-	for {
-		select {
-		case res := <-results:
-			fmt.Println(res)
-		case <-stopFlag:
-			time.Sleep(time.Second * 1)
-			os.Exit(0)
-		}
-	}
-}
-
-func worker(id int, jobs <-chan *scanJob, th <-chan time.Time, results chan<- *scanResult) {
-	for j := range jobs {
-		if j.Stop != 1 {
-			sendSyn(j.Laddr, j.Raddr, j.SPort, j.DPort)
-		} else {
-			stopFlag <- j.Stop
-		}
-		<-th
-	}
-}
-
-func sendSyn(laddr, raddr string, sport, dport uint16) {
-	conn, err := net.Dial("ip4:tcp", raddr)
-	printError(err)
-	defer conn.Close()
+func sendSyn(laddr string, raddr string, sport uint16, dport uint16) {
+	// Create TCP packet struct and header
 	op := []TCPOption{
 		TCPOption{
 			Kind:   2,
@@ -129,48 +34,61 @@ func sendSyn(laddr, raddr string, sport, dport uint16) {
 		UrgentPointer: 0,
 	}
 
-	buff := new(bytes.Buffer)
-
-	err = binary.Write(buff, binary.BigEndian, tcpH)
-	printError(err)
-	for i := range op {
-		binary.Write(buff, binary.BigEndian, op[i].Kind)
-		binary.Write(buff, binary.BigEndian, op[i].Length)
-		binary.Write(buff, binary.BigEndian, op[i].Data)
-	}
-
-	binary.Write(buff, binary.BigEndian, [6]byte{})
-
-	data := buff.Bytes()
-	checkSum := checkSum(data, ipstr2Bytes(laddr), ipstr2Bytes(raddr))
-	tcpH.ChkSum = checkSum
-
-	buff = new(bytes.Buffer)
-	binary.Write(buff, binary.BigEndian, tcpH)
-	for i := range op {
-		binary.Write(buff, binary.BigEndian, op[i].Kind)
-		binary.Write(buff, binary.BigEndian, op[i].Length)
-		binary.Write(buff, binary.BigEndian, op[i].Data)
-	}
-	binary.Write(buff, binary.BigEndian, [6]byte{})
-	data = buff.Bytes()
-
-	_, err = conn.Write(data)
-	printError(err)
-}
-
-func recvSynAck(laddr, raddr string, res chan<- *scanResult) error {
-	listenAddr, err := net.ResolveIPAddr("ip4", laddr)
+	// Connect to network interface to send packet
+	conn, err := net.Dial("ip4:tcp", raddr)
 	if err != nil {
-		return err
-	}
-
-	conn, err := net.ListenIP("ip4:tcp", listenAddr)
-	if err != nil {
-		return err
+		return
 	}
 	defer conn.Close()
 
+	// Build dummy packet for checksum
+	buff := new(bytes.Buffer)
+	binary.Write(buff, binary.BigEndian, tcpH)
+
+	for i := range op {
+		binary.Write(buff, binary.BigEndian, op[i].Kind)
+		binary.Write(buff, binary.BigEndian, op[i].Length)
+		binary.Write(buff, binary.BigEndian, op[i].Data)
+	}
+
+	binary.Write(buff, binary.BigEndian, [6]byte{})
+	data := buff.Bytes()
+	lIPbyte := ipstr2Bytes(laddr)
+	rIPbyte := ipstr2Bytes(raddr)
+	checkSum := checkSum(data, lIPbyte, rIPbyte)
+	tcpH.ChkSum = checkSum
+
+	// Build final packet
+	buff = new(bytes.Buffer)
+	binary.Write(buff, binary.BigEndian, tcpH)
+
+	for i := range op {
+		binary.Write(buff, binary.BigEndian, op[i].Kind)
+		binary.Write(buff, binary.BigEndian, op[i].Length)
+		binary.Write(buff, binary.BigEndian, op[i].Data)
+	}
+
+	binary.Write(buff, binary.BigEndian, [6]byte{})
+	conn.Write(buff.Bytes())
+}
+
+func recvSynAck(laddr string, raddr string, port uint16, res chan<- bool) {
+	// Checks if the IP address is resolveable
+	listenAddr, err := net.ResolveIPAddr("ip4", laddr)
+	if err != nil {
+		res <- false
+		return
+	}
+
+	// Connect to network interface to listen for packets
+	conn, err := net.ListenIP("ip4:tcp", listenAddr)
+	if err != nil {
+		res <- false
+		return
+	}
+	defer conn.Close()
+
+	// Read each packet looking for ack from raddr on packetport
 	for {
 		buff := make([]byte, 1024)
 		_, addr, err := conn.ReadFrom(buff)
@@ -182,13 +100,14 @@ func recvSynAck(laddr, raddr string, res chan<- *scanResult) error {
 			continue
 		}
 
-		var port uint16
-		binary.Read(bytes.NewReader(buff), binary.BigEndian, &port)
-
-		res <- &scanResult{
-			Port:   port,
-			Opened: true,
+		var packetport uint16
+		binary.Read(bytes.NewReader(buff), binary.BigEndian, &packetport)
+		if port != packetport {
+			continue
 		}
+
+		res <- true
+		return
 	}
 }
 
@@ -219,17 +138,13 @@ func checkSum(data []byte, src, dst [4]byte) uint16 {
 	sum = (sum >> 16) + (sum & 0xffff)
 	sum = sum + (sum >> 16)
 	return ^uint16(sum)
-
-}
-
-func printError(err error) {
-	if err != nil {
-		log.Println(err)
-	}
 }
 
 func ipstr2Bytes(addr string) [4]byte {
 	s := strings.Split(addr, ".")
+	if len(s) < 4 {
+		fmt.Println("FUCK THIS SHOULD NEVER HAPPEN", s)
+	}
 	b0, _ := strconv.Atoi(s[0])
 	b1, _ := strconv.Atoi(s[1])
 	b2, _ := strconv.Atoi(s[2])

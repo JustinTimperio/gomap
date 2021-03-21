@@ -8,11 +8,10 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	fastscan := true
+	fastscan := false
 	proto := "tcp"
-	stealth := false
-	// results, _ := gomap.ScanRange(fastscan)
-	results, _ := gomap.ScanIP("127.0.0.1", proto, fastscan, stealth)
+	stealth := true
+	results, _ := gomap.ScanIP("192.168.1.120", proto, fastscan, stealth)
+	// results, _ := gomap.ScanRange(fastscan, proto, fastscan, stealth)
 	fmt.Println(results)
-	// fmt.Println(gomap.InterfaceAddress("wlp2s0"))
 }

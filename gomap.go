@@ -19,6 +19,25 @@ type IPScanResult struct {
 	results  []portResult
 }
 
+//TCPHeader test
+type TCPHeader struct {
+	SrcPort       uint16
+	DstPort       uint16
+	SeqNum        uint32
+	AckNum        uint32
+	Flags         uint16
+	Window        uint16
+	ChkSum        uint16
+	UrgentPointer uint16
+}
+
+//TCPOption test
+type TCPOption struct {
+	Kind   uint8
+	Length uint8
+	Data   []byte
+}
+
 // RangeScanResult contains multiple IPScanResults
 type RangeScanResult []*IPScanResult
 

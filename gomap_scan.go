@@ -1,12 +1,9 @@
 package gomap
 
 import (
-	"encoding/binary"
 	"fmt"
-	"log"
 	"net"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -73,6 +70,7 @@ func scanIPPorts(hostname string, proto string, fastscan bool, stealth bool) (*I
 	}
 
 	tasks := len(list)
+	var depth int
 
 	resultChannel := make(chan portResult, tasks)
 	worker := func() {
@@ -88,7 +86,13 @@ func scanIPPorts(hostname string, proto string, fastscan bool, stealth bool) (*I
 	}
 
 	// Sets the number of workers
-	for i := 0; i < 10; i++ {
+	if stealth {
+		depth = 500
+	} else {
+		depth = 500
+	}
+
+	for i := 0; i < depth; i++ {
 		go worker()
 	}
 
@@ -130,58 +134,20 @@ func scanPort(resultChannel chan<- portResult, protocol, hostname, service strin
 
 func scanPortSyn(resultChannel chan<- portResult, protocol, hostname, service string, port int) {
 	result := portResult{Port: port, Service: service}
-	address := hostname + ":" + strconv.Itoa(port)
+	laddr, _ := getLocalIP()
+	ack := make(chan bool, 1)
 
-	// Ported Code for Syn-Awk Here
-	// Code should be called from `gomap_syn_scan`
-	// Code below can be removed when replaced with new code
-	conn, err := net.DialTimeout(protocol, address, 3*time.Second)
-	if err != nil {
+	go recvSynAck(laddr, hostname, uint16(port), ack)
+	sendSyn(laddr, hostname, uint16(random(10000, 65535)), uint16(port))
+
+	select {
+	case r := <-ack:
+		result.State = r
+		resultChannel <- result
+		return
+	case <-time.After(3 * time.Second):
 		result.State = false
 		resultChannel <- result
 		return
 	}
-
-	defer conn.Close()
-	result.State = true
-	resultChannel <- result
-}
-
-// createHostRange converts a input ip addr string to a slice of ips on the cidr
-func createHostRange(netw string) []string {
-	_, ipv4Net, err := net.ParseCIDR(netw)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	mask := binary.BigEndian.Uint32(ipv4Net.Mask)
-	start := binary.BigEndian.Uint32(ipv4Net.IP)
-	finish := (start & mask) | (mask ^ 0xffffffff)
-
-	var hosts []string
-	for i := start + 1; i <= finish-1; i++ {
-		ip := make(net.IP, 4)
-		binary.BigEndian.PutUint32(ip, i)
-		hosts = append(hosts, ip.String())
-	}
-
-	return hosts
-}
-
-// getLocalRange returns local ip range or defaults on error to most common
-func getLocalRange() string {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return "192.168.1.0/24"
-	}
-	for _, address := range addrs {
-		// check the address type and if it is not a loopback the display it
-		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				split := strings.Split(ipnet.IP.String(), ".")
-				return split[0] + "." + split[1] + "." + split[2] + ".0/24"
-			}
-		}
-	}
-	return "192.168.1.0/24"
 }
