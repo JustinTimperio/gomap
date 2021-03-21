@@ -8,6 +8,22 @@ import (
 	"strings"
 )
 
+func canSocketBind(laddr string) bool {
+	// Check if user can listen on socket
+	listenAddr, err := net.ResolveIPAddr("ip4", laddr)
+	if err != nil {
+		return false
+	}
+
+	conn, err := net.ListenIP("ip4:tcp", listenAddr)
+	if err != nil {
+		return false
+	}
+
+	conn.Close()
+	return true
+}
+
 // createHostRange converts a input ip addr string to a slice of ips on the cidr
 func createHostRange(netw string) []string {
 	_, ipv4Net, err := net.ParseCIDR(netw)

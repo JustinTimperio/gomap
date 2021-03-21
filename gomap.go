@@ -6,12 +6,6 @@ import (
 	"net"
 )
 
-type portResult struct {
-	Port    int
-	State   bool
-	Service string
-}
-
 // IPScanResult contains the results of a scan on a single ip
 type IPScanResult struct {
 	hostname string
@@ -19,8 +13,13 @@ type IPScanResult struct {
 	results  []portResult
 }
 
-//TCPHeader test
-type TCPHeader struct {
+type portResult struct {
+	Port    int
+	State   bool
+	Service string
+}
+
+type tcpHeader struct {
 	SrcPort       uint16
 	DstPort       uint16
 	SeqNum        uint32
@@ -31,8 +30,7 @@ type TCPHeader struct {
 	UrgentPointer uint16
 }
 
-//TCPOption test
-type TCPOption struct {
+type tcpOption struct {
 	Kind   uint8
 	Length uint8
 	Data   []byte
@@ -43,12 +41,32 @@ type RangeScanResult []*IPScanResult
 
 // ScanIP scans a single IP for open ports
 func ScanIP(hostname string, proto string, fastscan bool, stealth bool) (*IPScanResult, error) {
-	return scanIPPorts(hostname, proto, fastscan, stealth)
+	laddr, err := getLocalIP()
+	if err != nil {
+		return nil, err
+	}
+
+	if stealth {
+		if canSocketBind(laddr) == false {
+			return nil, fmt.Errorf("socket: operation not permitted")
+		}
+	}
+	return scanIPPorts(hostname, laddr, proto, fastscan, stealth)
 }
 
 // ScanRange scans every address on a CIDR for open ports
-func ScanRange(fastscan bool, proto string, stealth bool) (RangeScanResult, error) {
-	return scanIPRange(proto, fastscan, stealth)
+func ScanRange(proto string, fastscan bool, stealth bool) (RangeScanResult, error) {
+	laddr, err := getLocalIP()
+	if err != nil {
+		return nil, err
+	}
+
+	if stealth {
+		if canSocketBind(laddr) == false {
+			return nil, fmt.Errorf("socket: operation not permitted")
+		}
+	}
+	return scanIPRange(laddr, proto, fastscan, stealth)
 }
 
 // String with the results of a single scanned IP

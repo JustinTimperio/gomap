@@ -10,13 +10,13 @@ import (
 // scanIPRange scans an entire cidr range for open ports
 // I am fairly happy with this code since its just iterating
 // over scanIPPorts. Most issues are deeper in the code.
-func scanIPRange(proto string, fastscan bool, stealth bool) (RangeScanResult, error) {
+func scanIPRange(laddr string, proto string, fastscan bool, stealth bool) (RangeScanResult, error) {
 	iprange := getLocalRange()
 	hosts := createHostRange(iprange)
 
 	var results RangeScanResult
 	for _, h := range hosts {
-		scan, err := scanIPPorts(h, proto, fastscan, stealth)
+		scan, err := scanIPPorts(h, laddr, proto, fastscan, stealth)
 		if err != nil {
 			continue
 		}
@@ -27,7 +27,7 @@ func scanIPRange(proto string, fastscan bool, stealth bool) (RangeScanResult, er
 }
 
 // scanIPPorts scans a list of ports on <hostname> <protocol>
-func scanIPPorts(hostname string, proto string, fastscan bool, stealth bool) (*IPScanResult, error) {
+func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, stealth bool) (*IPScanResult, error) {
 	var results []portResult
 
 	// checks if device is online
@@ -50,34 +50,35 @@ func scanIPPorts(hostname string, proto string, fastscan bool, stealth bool) (*I
 		hname = append(hname, "Unknown")
 	}
 
-	// Creates a pool of go routines to scan every port on
-	// a given host in parrallel. Routines are limited to
-	// 10 workers in parrallel to reduce port flooding
+	// Start prepping channels and vars for worker pool
 	in := make(chan int)
 	go func() {
 		for i := 0; i <= 65535; i++ {
 			in <- i
 		}
-
 		close(in)
 	}()
 
 	var list map[int]string
+	var depth int
+
 	if fastscan {
 		list = commonlist
+		depth = 50
 	} else {
 		list = detailedlist
+		depth = 500
 	}
 
 	tasks := len(list)
-	var depth int
 
+	// Create results channel and worker function
 	resultChannel := make(chan portResult, tasks)
 	worker := func() {
 		for port := range in {
 			if service, ok := list[port]; ok {
 				if stealth {
-					scanPortSyn(resultChannel, proto, hostname, service, port)
+					scanPortSyn(resultChannel, proto, hostname, service, port, laddr)
 				} else {
 					scanPort(resultChannel, proto, hostname, service, port)
 				}
@@ -85,19 +86,12 @@ func scanIPPorts(hostname string, proto string, fastscan bool, stealth bool) (*I
 		}
 	}
 
-	// Sets the number of workers
-	if stealth {
-		depth = 500
-	} else {
-		depth = 500
-	}
-
+	// Deploy a pool of workers
 	for i := 0; i < depth; i++ {
 		go worker()
 	}
 
-	// Combines all results from resultChannel and
-	// returns a IPScanResult strucu
+	// Combines all results from resultChannel and return a IPScanResult
 	for result := range resultChannel {
 		results = append(results, result)
 		fmt.Printf("\033[2K\rHost: %s | Ports Scanned %d/%d", hostname, len(results), tasks)
@@ -132,9 +126,11 @@ func scanPort(resultChannel chan<- portResult, protocol, hostname, service strin
 	resultChannel <- result
 }
 
-func scanPortSyn(resultChannel chan<- portResult, protocol, hostname, service string, port int) {
+// scanPortSyn scans a single ip port combo using a syn-ack
+// This detection method again only works on some types of services
+// but is a reasonable solution for this application
+func scanPortSyn(resultChannel chan<- portResult, protocol, hostname, service string, port int, laddr string) {
 	result := portResult{Port: port, Service: service}
-	laddr, _ := getLocalIP()
 	ack := make(chan bool, 1)
 
 	go recvSynAck(laddr, hostname, uint16(port), ack)

@@ -24,6 +24,7 @@ Gomap is a fully self-contained nmap like module for Golang. Unlike other projec
   - Stable Release
 
 ## Example Usage - 1
+Performs a fastscan for the most common ports on every IP on a local range
 ### Create Files
  1. Create `quickscan.go`
 ```go
@@ -34,10 +35,13 @@ import (
 	)
 
 func main() {
-	fastscan := true 
-  syn := false
-  proto:= "tcp"
- 	scan := gomap.ScanRange(fastscan)
+  var (
+    proto     = "tcp"
+	  fastscan  = true
+    syn       = false
+  )
+
+ 	scan := gomap.ScanRange(proto, fastscan, syn)
  	fmt.Printf(scan.String())
 }
 
@@ -72,6 +76,8 @@ Host: some-phone (192.168.1.155)
 ```
 
 ## Example Usage - 2
+Performs a detailed stealth scan on a single IP
+
 ### Create Files
  1. Create `stealthmap.go`
 ```go
@@ -82,11 +88,15 @@ import (
 	)
 
 func main() {
-	fastscan := false
   // Stealth scans MUST be run as root/admin
-  syn := true
-  proto := "tcp"
- 	scan := gomap.ScanRange(proto, fastscan, syn)
+  var (
+	  fastscan = false
+    syn = true
+    proto = "tcp"
+    ip = "192.168.1.120"
+  )
+
+ 	scan := gomap.ScanIP(ip, proto, fastscan, syn)
  	fmt.Printf(scan.String())
 }
 
@@ -98,24 +108,12 @@ func main() {
 ### Example Output
 
 ```
-Host: computer-name (192.168.1.132)
+Host: 192.168.1.120 | Ports Scanned 3236/3236
+Host: Voyager (192.168.1.120)
         |     Port      Service
         |     ----      -------
-        |---- 22        ssh
- 
-Host: server-nginx (192.168.1.143)
-        |     Port      Service
-        |     ----      -------
-        |---- 443       https
-        |---- 80        http
-        |---- 22        ssh
- 
-Host: server-minio (192.168.1.112)
-        |     Port      Service
-        |     ----      -------
-        |---- 22        ssh
+        |---- 22        SSH Remote Login Protocol
+        |---- 80        World Wide Web HTTP
+        |---- 443       HTTP protocol over TLS/SSL
 
-Host: some-phone (192.168.1.155)
-        |- No Open Ports
- 
 ```

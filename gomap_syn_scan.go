@@ -3,27 +3,26 @@ package gomap
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"math/rand"
 	"net"
 	"strconv"
 	"strings"
 )
 
-func sendSyn(laddr string, raddr string, sport uint16, dport uint16) {
+func sendSyn(laddr string, raddr string, sport uint16, dport uint16) error {
 	// Create TCP packet struct and header
-	op := []TCPOption{
-		TCPOption{
+	op := []tcpOption{
+		tcpOption{
 			Kind:   2,
 			Length: 4,
 			Data:   []byte{0x05, 0xb4},
 		},
-		TCPOption{
+		tcpOption{
 			Kind: 0,
 		},
 	}
 
-	tcpH := TCPHeader{
+	tcpH := tcpHeader{
 		SrcPort:       sport,
 		DstPort:       dport,
 		SeqNum:        rand.Uint32(),
@@ -37,7 +36,7 @@ func sendSyn(laddr string, raddr string, sport uint16, dport uint16) {
 	// Connect to network interface to send packet
 	conn, err := net.Dial("ip4:tcp", raddr)
 	if err != nil {
-		return
+		return err
 	}
 	defer conn.Close()
 
@@ -53,9 +52,7 @@ func sendSyn(laddr string, raddr string, sport uint16, dport uint16) {
 
 	binary.Write(buff, binary.BigEndian, [6]byte{})
 	data := buff.Bytes()
-	lIPbyte := ipstr2Bytes(laddr)
-	rIPbyte := ipstr2Bytes(raddr)
-	checkSum := checkSum(data, lIPbyte, rIPbyte)
+	checkSum := checkSum(data, ipstr2Bytes(laddr), ipstr2Bytes(raddr))
 	tcpH.ChkSum = checkSum
 
 	// Build final packet
@@ -67,24 +64,24 @@ func sendSyn(laddr string, raddr string, sport uint16, dport uint16) {
 		binary.Write(buff, binary.BigEndian, op[i].Length)
 		binary.Write(buff, binary.BigEndian, op[i].Data)
 	}
-
 	binary.Write(buff, binary.BigEndian, [6]byte{})
+
+	// Send Packet
 	conn.Write(buff.Bytes())
+	return nil
 }
 
-func recvSynAck(laddr string, raddr string, port uint16, res chan<- bool) {
+func recvSynAck(laddr string, raddr string, port uint16, res chan<- bool) error {
 	// Checks if the IP address is resolveable
 	listenAddr, err := net.ResolveIPAddr("ip4", laddr)
 	if err != nil {
-		res <- false
-		return
+		return err
 	}
 
 	// Connect to network interface to listen for packets
 	conn, err := net.ListenIP("ip4:tcp", listenAddr)
 	if err != nil {
-		res <- false
-		return
+		return err
 	}
 	defer conn.Close()
 
@@ -95,7 +92,6 @@ func recvSynAck(laddr string, raddr string, port uint16, res chan<- bool) {
 		if err != nil {
 			continue
 		}
-
 		if addr.String() != raddr || buff[13] != 0x12 {
 			continue
 		}
@@ -107,7 +103,7 @@ func recvSynAck(laddr string, raddr string, port uint16, res chan<- bool) {
 		}
 
 		res <- true
-		return
+		return nil
 	}
 }
 
@@ -142,9 +138,6 @@ func checkSum(data []byte, src, dst [4]byte) uint16 {
 
 func ipstr2Bytes(addr string) [4]byte {
 	s := strings.Split(addr, ".")
-	if len(s) < 4 {
-		fmt.Println("FUCK THIS SHOULD NEVER HAPPEN", s)
-	}
 	b0, _ := strconv.Atoi(s[0])
 	b1, _ := strconv.Atoi(s[1])
 	b2, _ := strconv.Atoi(s[2])
