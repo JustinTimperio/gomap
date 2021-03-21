@@ -8,9 +8,18 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	fastscan := true
-	results, _ := gomap.ScanRange(fastscan)
-	// results, _ := gomap.ScanIP("127.0.0.1", fastscan)
+	var (
+		proto    = "tcp"
+		fastscan = false
+		stealth  = false
+	)
 
-	fmt.Println(results)
+	// results, err := gomap.ScanIP("192.168.1.120", proto, fastscan, stealth)
+	results, err := gomap.ScanRange(proto, fastscan, stealth)
+
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println(results)
+	}
 }
