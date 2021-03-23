@@ -18,8 +18,7 @@ func TestMain(m *testing.M) {
 	results, err := gomap.ScanRange(proto, fastscan, stealth)
 
 	if err != nil {
-		fmt.Println(err)
-	} else {
-		fmt.Println(results)
+		panic(err)
 	}
+	fmt.Println(results.String())
 }
