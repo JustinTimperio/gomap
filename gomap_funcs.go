@@ -77,5 +77,5 @@ func getLocalIP() (string, error) {
 			}
 		}
 	}
-	return "", fmt.Errorf("No IP Found!")
+	return "", fmt.Errorf("No IP Found")
 }

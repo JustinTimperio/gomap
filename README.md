@@ -12,7 +12,7 @@ Gomap is a fully self-contained nmap like module for Golang. Unlike other projec
 ## Features
   - Parallel port scanning using go routines
   - Automated CIDR range scanning
-  - Service perdiction by port number
+  - Service prediction by port number
   - SYN (Silent) Scanning Mode
   - UDP Scanning (Non-Stealth)
   - Fast and detailed scanning for common ports
@@ -31,20 +31,23 @@ Performs a fastscan for the most common ports on every IP on a local range
 package main
 
 import (
-        "fmt"
+	"fmt"
 
-        "github.com/JustinTimperio/gomap"
+	"github.com/JustinTimperio/gomap"
 )
 
 func main() {
-        var (
-                proto    = "tcp"
-                fastscan = true
-                syn      = false
-        )
+	var (
+		proto    = "tcp"
+		fastscan = true
+		syn      = false
+	)
 
-        scan := gomap.ScanRange(proto, fastscan, syn)
-        fmt.Printf(scan.String())
+	scan, err := gomap.ScanRange(proto, fastscan, syn)
+	if err != nil {
+		// handle error
+	}
+	fmt.Printf(scan.String())
 }
 ```
  2. `go mod init quickscan`
@@ -84,22 +87,25 @@ Performs a detailed stealth scan on a single IP
 package main
 
 import (
-        "fmt"
+	"fmt"
 
-        "github.com/JustinTimperio/gomap"
+	"github.com/JustinTimperio/gomap"
 )
 
 func main() {
-        // Stealth scans MUST be run as root/admin
-        var (
-                fastscan = false
-                syn      = true
-                proto    = "tcp"
-                ip       = "192.168.1.120"
-        )
+	// Stealth scans MUST be run as root/admin
+	var (
+		fastscan = false
+		syn      = true
+		proto    = "tcp"
+		ip       = "192.168.1.120"
+	)
 
-        scan := gomap.ScanIP(ip, proto, fastscan, syn)
-        fmt.Printf(scan.String())
+	scan, err := gomap.ScanIP(ip, proto, fastscan, syn)
+	if err != nil {
+		// handle error
+	}
+	fmt.Printf(scan.String())
 }
 ```
  2. `go mod init stealthmap`
