@@ -102,9 +102,9 @@ func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, ste
 	}
 
 	return &IPScanResult{
-		hostname: hname[0],
-		ip:       addr,
-		results:  results,
+		Hostname: hname[0],
+		IP:       addr,
+		Results:  results,
 	}, nil
 }
 
