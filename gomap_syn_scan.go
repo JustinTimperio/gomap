@@ -12,12 +12,12 @@ import (
 func sendSyn(laddr string, raddr string, sport uint16, dport uint16) error {
 	// Create TCP packet struct and header
 	op := []tcpOption{
-		tcpOption{
+		{
 			Kind:   2,
 			Length: 4,
 			Data:   []byte{0x05, 0xb4},
 		},
-		tcpOption{
+		{
 			Kind: 0,
 		},
 	}

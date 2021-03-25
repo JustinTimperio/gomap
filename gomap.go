@@ -144,7 +144,7 @@ func (results RangeScanResult) Json() {
 
 	for _, r := range results {
 		var ipdata jsonIP
-		ipdata.IP = string(r.IP[len(r.IP)-1])
+		ipdata.IP = fmt.Sprintln(r.IP[len(r.IP)-1])
 
 		active := false
 		for _, r := range r.Results {
@@ -160,7 +160,6 @@ func (results RangeScanResult) Json() {
 				if v.State {
 					entry := fmt.Sprintln(v.Port, v.Service)
 					ipdata.Ports = append(ipdata.Ports, entry)
-					fmt.Println(entry)
 				}
 			}
 		}
