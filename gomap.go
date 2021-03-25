@@ -2,15 +2,16 @@ package gomap
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net"
 )
 
 // IPScanResult contains the results of a scan on a single ip
 type IPScanResult struct {
-	hostname string
-	ip       []net.IP
-	results  []portResult
+	Hostname string
+	IP       []net.IP
+	Results  []portResult
 }
 
 type portResult struct {
@@ -72,12 +73,12 @@ func ScanRange(proto string, fastscan bool, stealth bool) (RangeScanResult, erro
 // String with the results of a single scanned IP
 func (results *IPScanResult) String() string {
 	b := bytes.NewBuffer(nil)
-	ip := results.ip[len(results.ip)-1]
+	ip := results.IP[len(results.IP)-1]
 
-	fmt.Fprintf(b, "\nHost: %s (%s)\n", results.hostname, ip)
+	fmt.Fprintf(b, "\nHost: %s (%s)\n", results.Hostname, ip)
 
 	active := false
-	for _, r := range results.results {
+	for _, r := range results.Results {
 		if r.State {
 			active = true
 			break
@@ -86,12 +87,12 @@ func (results *IPScanResult) String() string {
 	if active {
 		fmt.Fprintf(b, "\t|     %s	%s\n", "Port", "Service")
 		fmt.Fprintf(b, "\t|     %s	%s\n", "----", "-------")
-		for _, v := range results.results {
+		for _, v := range results.Results {
 			if v.State {
 				fmt.Fprintf(b, "\t|---- %d	%s\n", v.Port, v.Service)
 			}
 		}
-	} else if results.hostname != "Unknown" {
+	} else if results.Hostname != "Unknown" {
 		fmt.Fprintf(b, "\t|---- %s\n", "No Open Ports Found")
 	}
 	return b.String()
@@ -101,12 +102,12 @@ func (results *IPScanResult) String() string {
 func (results RangeScanResult) String() string {
 	b := bytes.NewBuffer(nil)
 	for _, r := range results {
-		ip := r.ip[len(r.ip)-1]
+		ip := r.IP[len(r.IP)-1]
 
-		fmt.Fprintf(b, "\nHost: %s (%s)\n", r.hostname, ip)
+		fmt.Fprintf(b, "\nHost: %s (%s)\n", r.Hostname, ip)
 		active := false
 
-		for _, r := range r.results {
+		for _, r := range r.Results {
 			if r.State {
 				active = true
 				break
@@ -115,15 +116,92 @@ func (results RangeScanResult) String() string {
 		if active {
 			fmt.Fprintf(b, "\t|     %s	%s\n", "Port", "Service")
 			fmt.Fprintf(b, "\t|     %s	%s\n", "----", "-------")
-			for _, v := range r.results {
+			for _, v := range r.Results {
 				if v.State {
 					fmt.Fprintf(b, "\t|---- %d	%s\n", v.Port, v.Service)
 				}
 			}
-		} else if r.hostname != "Unknown" {
+		} else if r.Hostname != "Unknown" {
 			fmt.Fprintf(b, "\t|---- %s\n", "No Open Ports Found")
 		}
 	}
 
 	return b.String()
+}
+
+type jsonRange struct {
+	results []jsonIP
+}
+
+type jsonIP struct {
+	IP       string
+	Hostname string
+	Active   bool
+	Ports    []string
+}
+
+func (results *IPScanResult) Json() (string, error) {
+	var ipdata jsonIP
+	fmt.Println(results.IP)
+	ipdata.IP = fmt.Sprintf("%s", results.IP[len(results.IP)-1])
+	ipdata.Hostname = results.Hostname
+
+	active := false
+	for _, r := range results.Results {
+		if r.State {
+			active = true
+			break
+		}
+	}
+	ipdata.Active = active
+
+	if active {
+		for _, v := range results.Results {
+			if v.State {
+				entry := fmt.Sprintf("%d: %s", v.Port, v.Service)
+				ipdata.Ports = append(ipdata.Ports, entry)
+			}
+		}
+	}
+
+	j, err := json.MarshalIndent(ipdata, "", "	")
+	if err != nil {
+		return "", err
+	}
+	return string(j), nil
+}
+
+func (results RangeScanResult) Json() (string, error) {
+	var data jsonRange
+
+	for _, r := range results {
+		var ipdata jsonIP
+		ipdata.IP = fmt.Sprintf("%s", r.IP[len(r.IP)-1])
+		ipdata.Hostname = r.Hostname
+
+		active := false
+		for _, r := range r.Results {
+			if r.State {
+				active = true
+				break
+			}
+		}
+		ipdata.Active = active
+
+		if active {
+			for _, v := range r.Results {
+				if v.State {
+					entry := fmt.Sprintf("%d: %s", v.Port, v.Service)
+					ipdata.Ports = append(ipdata.Ports, entry)
+				}
+			}
+		}
+		data.results = append(data.results, ipdata)
+	}
+
+	j, err := json.MarshalIndent(data.results, "", "	")
+	if err != nil {
+		return "", err
+	}
+	return string(j), nil
 }
