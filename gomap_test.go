@@ -14,13 +14,18 @@ func TestMain(m *testing.M) {
 		stealth  = false
 	)
 
-	// results, err := gomap.ScanIP("192.168.1.120", proto, fastscan, stealth)
+	// results, err := gomap.ScanIP("192.168.1.1", proto, fastscan, stealth)
 	results, err := gomap.ScanRange(proto, fastscan, stealth)
-	results.Json()
-
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	} else {
-		// fmt.Println(results.String())
+		fmt.Println(results.String())
+	}
+
+	j, err := results.Json()
+	if err != nil {
+		panic(err)
+	} else {
+		fmt.Println(j)
 	}
 }

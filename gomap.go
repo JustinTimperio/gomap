@@ -134,17 +134,50 @@ type jsonRange struct {
 }
 
 type jsonIP struct {
-	IP     string
-	Active bool
-	Ports  []string
+	IP       string
+	Hostname string
+	Active   bool
+	Ports    []string
 }
 
-func (results RangeScanResult) Json() {
+func (results *IPScanResult) Json() (string, error) {
+	var ipdata jsonIP
+	fmt.Println(results.IP)
+	ipdata.IP = fmt.Sprintf("%s", results.IP[len(results.IP)-1])
+	ipdata.Hostname = results.Hostname
+
+	active := false
+	for _, r := range results.Results {
+		if r.State {
+			active = true
+			break
+		}
+	}
+	ipdata.Active = active
+
+	if active {
+		for _, v := range results.Results {
+			if v.State {
+				entry := fmt.Sprintf("%d: %s", v.Port, v.Service)
+				ipdata.Ports = append(ipdata.Ports, entry)
+			}
+		}
+	}
+
+	j, err := json.MarshalIndent(ipdata, "", "	")
+	if err != nil {
+		return "", err
+	}
+	return string(j), nil
+}
+
+func (results RangeScanResult) Json() (string, error) {
 	var data jsonRange
 
 	for _, r := range results {
 		var ipdata jsonIP
-		ipdata.IP = fmt.Sprintln(r.IP[len(r.IP)-1])
+		ipdata.IP = fmt.Sprintf("%s", r.IP[len(r.IP)-1])
+		ipdata.Hostname = r.Hostname
 
 		active := false
 		for _, r := range r.Results {
@@ -158,7 +191,7 @@ func (results RangeScanResult) Json() {
 		if active {
 			for _, v := range r.Results {
 				if v.State {
-					entry := fmt.Sprintln(v.Port, v.Service)
+					entry := fmt.Sprintf("%d: %s", v.Port, v.Service)
 					ipdata.Ports = append(ipdata.Ports, entry)
 				}
 			}
@@ -166,9 +199,9 @@ func (results RangeScanResult) Json() {
 		data.results = append(data.results, ipdata)
 	}
 
-	j, err := json.Marshal(data)
+	j, err := json.MarshalIndent(data.results, "", "	")
 	if err != nil {
-		return
+		return "", err
 	}
-	fmt.Println(j)
+	return string(j), nil
 }
