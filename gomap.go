@@ -14,6 +14,19 @@ type IPScanResult struct {
 	Results  []portResult
 }
 
+// Contains a slice of of JsonIP results
+type JsonRange struct {
+	results []JsonIP
+}
+
+// Contains the results for a single JSON entry
+type JsonIP struct {
+	IP       string
+	Hostname string
+	Active   bool
+	Ports    []string
+}
+
 type portResult struct {
 	Port    int
 	State   bool
@@ -129,19 +142,8 @@ func (results RangeScanResult) String() string {
 	return b.String()
 }
 
-type jsonRange struct {
-	results []jsonIP
-}
-
-type jsonIP struct {
-	IP       string
-	Hostname string
-	Active   bool
-	Ports    []string
-}
-
 func (results *IPScanResult) Json() (string, error) {
-	var ipdata jsonIP
+	var ipdata JsonIP
 	fmt.Println(results.IP)
 	ipdata.IP = fmt.Sprintf("%s", results.IP[len(results.IP)-1])
 	ipdata.Hostname = results.Hostname
@@ -172,10 +174,10 @@ func (results *IPScanResult) Json() (string, error) {
 }
 
 func (results RangeScanResult) Json() (string, error) {
-	var data jsonRange
+	var data JsonRange
 
 	for _, r := range results {
-		var ipdata jsonIP
+		var ipdata JsonIP
 		ipdata.IP = fmt.Sprintf("%s", r.IP[len(r.IP)-1])
 		ipdata.Hostname = r.Hostname
 
