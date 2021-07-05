@@ -14,12 +14,12 @@ type IPScanResult struct {
 	Results  []portResult
 }
 
-// Contains a slice of of JsonIP results
+// JsonRange contains a slice of of JsonIP results
 type JsonRange struct {
 	results []JsonIP
 }
 
-// Contains the results for a single JSON entry
+// JsonIP contains the results for a single JSON entry
 type JsonIP struct {
 	IP       string
 	Hostname string
@@ -142,6 +142,7 @@ func (results RangeScanResult) String() string {
 	return b.String()
 }
 
+// Contains a marshaled struct containing the results for a ip scan
 func (results *IPScanResult) Json() (string, error) {
 	var ipdata JsonIP
 	fmt.Println(results.IP)
@@ -173,6 +174,7 @@ func (results *IPScanResult) Json() (string, error) {
 	return string(j), nil
 }
 
+// Contains a marshaled struct containing the results for a range scan
 func (results RangeScanResult) Json() (string, error) {
 	var data JsonRange
 

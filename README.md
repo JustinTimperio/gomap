@@ -20,8 +20,7 @@ Gomap is a fully self-contained nmap like module for Golang. Unlike other projec
   - Easily integrated into other projects
 
 ## Upcoming Features
-  - More Known Ports for Detection
-  - Stable Release
+  - CIDR range size detection
 
 ## Example Usage - 1
 Performs a fastscan for the most common ports on every IP on a local range
