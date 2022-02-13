@@ -12,10 +12,11 @@ func TestMain(m *testing.M) {
 		proto    = "tcp"
 		fastscan = true
 		stealth  = false
+		proxy    = ""
 	)
 
-	// results, err := gomap.ScanIP("192.168.1.1", proto, fastscan, stealth)
-	results, err := gomap.ScanRange(proto, fastscan, stealth)
+	// results, err := gomap.ScanIP("192.168.1.1", proto, fastscan, stealth, proxy)
+	results, err := gomap.ScanRange(proto, fastscan, stealth, proxy)
 	if err != nil {
 		panic(err)
 	} else {

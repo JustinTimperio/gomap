@@ -54,7 +54,7 @@ type tcpOption struct {
 type RangeScanResult []*IPScanResult
 
 // ScanIP scans a single IP for open ports
-func ScanIP(hostname string, proto string, fastscan bool, stealth bool) (*IPScanResult, error) {
+func ScanIP(hostname string, proto string, fastscan bool, stealth bool, proxyURL string) (*IPScanResult, error) {
 	laddr, err := getLocalIP()
 	if err != nil {
 		return nil, err
@@ -65,11 +65,11 @@ func ScanIP(hostname string, proto string, fastscan bool, stealth bool) (*IPScan
 			return nil, fmt.Errorf("socket: operation not permitted")
 		}
 	}
-	return scanIPPorts(hostname, laddr, proto, fastscan, stealth)
+	return scanIPPorts(hostname, laddr, proto, fastscan, stealth, proxyURL)
 }
 
 // ScanRange scans every address on a CIDR for open ports
-func ScanRange(proto string, fastscan bool, stealth bool) (RangeScanResult, error) {
+func ScanRange(proto string, fastscan bool, stealth bool, proxyURL string) (RangeScanResult, error) {
 	laddr, err := getLocalIP()
 	if err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func ScanRange(proto string, fastscan bool, stealth bool) (RangeScanResult, erro
 			return nil, fmt.Errorf("socket: operation not permitted")
 		}
 	}
-	return scanIPRange(laddr, proto, fastscan, stealth)
+	return scanIPRange(laddr, proto, fastscan, stealth, proxyURL)
 }
 
 // String with the results of a single scanned IP

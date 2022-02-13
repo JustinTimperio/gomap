@@ -3,20 +3,23 @@ package gomap
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"strconv"
 	"time"
+
+	"golang.org/x/net/proxy"
 )
 
 // scanIPRange scans an entire cidr range for open ports
 // I am fairly happy with this code since its just iterating
 // over scanIPPorts. Most issues are deeper in the code.
-func scanIPRange(laddr string, proto string, fastscan bool, stealth bool) (RangeScanResult, error) {
+func scanIPRange(laddr string, proto string, fastscan bool, stealth bool, proxyURL string) (RangeScanResult, error) {
 	iprange := getLocalRange()
 	hosts := createHostRange(iprange)
 
 	var results RangeScanResult
 	for _, h := range hosts {
-		scan, err := scanIPPorts(h, laddr, proto, fastscan, stealth)
+		scan, err := scanIPPorts(h, laddr, proto, fastscan, stealth, proxyURL)
 		if err != nil {
 			continue
 		}
@@ -27,7 +30,7 @@ func scanIPRange(laddr string, proto string, fastscan bool, stealth bool) (Range
 }
 
 // scanIPPorts scans a list of ports on <hostname> <protocol>
-func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, stealth bool) (*IPScanResult, error) {
+func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, stealth bool, proxyURL string) (*IPScanResult, error) {
 	var results []portResult
 
 	// checks if device is online
@@ -78,9 +81,9 @@ func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, ste
 		for port := range in {
 			if service, ok := list[port]; ok {
 				if stealth {
-					scanPortSyn(resultChannel, proto, hostname, service, port, laddr)
+					scanPortSyn(resultChannel, proto, hostname, service, port, laddr, proxyURL)
 				} else {
-					scanPort(resultChannel, proto, hostname, service, port)
+					scanPort(resultChannel, proto, hostname, service, port, proxyURL)
 				}
 			}
 		}
@@ -111,10 +114,44 @@ func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, ste
 // scanPort scans a single ip port combo
 // This detection method only works on some types of services
 // but is a reasonable solution for this application
-func scanPort(resultChannel chan<- portResult, protocol, hostname, service string, port int) {
+func scanPort(resultChannel chan<- portResult, protocol, hostname, service string, port int, proxyURL string) {
 	result := portResult{Port: port, Service: service}
 	address := hostname + ":" + strconv.Itoa(port)
-	conn, err := net.DialTimeout(protocol, address, 3*time.Second)
+	var conn net.Conn
+	var err error
+	var proxyDialer proxy.Dialer
+	// use proxy dialer if proxyURL string is not empty
+	if len(proxyURL) > 0 {
+		u, uErr := url.Parse(proxyURL)
+		pw, _ := u.User.Password()
+
+		auth := &proxy.Auth{
+			User:     u.User.Username(),
+			Password: pw,
+		}
+		if uErr != nil {
+			fmt.Println("Failed to obtain proxy dialer: ", err)
+			return
+		}
+		// create a proxy dialer for SOCKS5 proxy
+		if u.Scheme == "socks5" {
+			proxyDialer, err = proxy.SOCKS5("ip4:tcp", address, auth, proxy.Direct)
+			if err != nil {
+				fmt.Printf("failed to create SOCKS5 proxy dialer: %s\n", err)
+				return
+			}
+		} else {
+			proxyDialer, err = proxy.FromURL(u, proxy.Direct)
+			if err != nil {
+				fmt.Printf("Failed to parse  " + proxyURL + " as a proxy: " + err.Error())
+				return
+			}
+		}
+		conn, err = proxyDialer.Dial(protocol, address)
+	} else {
+		conn, err = net.DialTimeout(protocol, address, 3*time.Second)
+	}
+
 	if err != nil {
 		result.State = false
 		resultChannel <- result
@@ -129,12 +166,12 @@ func scanPort(resultChannel chan<- portResult, protocol, hostname, service strin
 // scanPortSyn scans a single ip port combo using a syn-ack
 // This detection method again only works on some types of services
 // but is a reasonable solution for this application
-func scanPortSyn(resultChannel chan<- portResult, protocol, hostname, service string, port int, laddr string) {
+func scanPortSyn(resultChannel chan<- portResult, protocol, hostname, service string, port int, laddr string, proxyURL string) {
 	result := portResult{Port: port, Service: service}
 	ack := make(chan bool, 1)
 
 	go recvSynAck(laddr, hostname, uint16(port), ack)
-	sendSyn(laddr, hostname, uint16(random(10000, 65535)), uint16(port))
+	sendSyn(laddr, hostname, uint16(random(10000, 65535)), uint16(port), proxyURL)
 
 	select {
 	case r := <-ack:
