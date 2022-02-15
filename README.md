@@ -41,7 +41,7 @@ func main() {
 		proto    = "tcp"
 		fastscan = true
 		syn      = false
-                // optionally pass in proxy URL if not set to nil
+                // optionally pass in the pointer of proxy URL i.e. &proxy if not set to nil
                 // proxy    = "socks5://127.0.0.1:1080"
 	)
 
@@ -101,7 +101,7 @@ func main() {
 		syn      = true
 		proto    = "tcp"
 		ip       = "192.168.1.120"
-                // optionally pass in proxy URL if not set to nil
+                // optionally pass in the pointer of proxy URL i.e. &proxy if not set to nil
                 // proxy    = "socks5://127.0.0.1:1080"
 	)
 
