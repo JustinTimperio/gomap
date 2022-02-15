@@ -83,14 +83,14 @@ func getLocalIP() (string, error) {
 	return "", fmt.Errorf("No IP Found")
 }
 
-func dialTarget(proxyURL, raddr, protocol string) (net.Conn, error) {
+func dialTarget(proxyURL *string, raddr, protocol string) (net.Conn, error) {
 	var conn net.Conn
 	var err error
 	var dialerErr error
 	var proxyDialer proxy.Dialer
 
-	if len(proxyURL) > 0 {
-		u, uErr := url.Parse(proxyURL)
+	if proxyURL != nil {
+		u, uErr := url.Parse(*proxyURL)
 		pw, _ := u.User.Password()
 
 		auth := &proxy.Auth{
@@ -102,14 +102,14 @@ func dialTarget(proxyURL, raddr, protocol string) (net.Conn, error) {
 		}
 		// create a proxy dialer for SOCKS5 proxy
 		if u.Scheme == "socks5" {
-			proxyDialer, dialerErr = proxy.SOCKS5(protocol, raddr, auth, proxy.Direct)
+			proxyDialer, dialerErr = proxy.SOCKS5(protocol, u.Host, auth, proxy.Direct)
 			if dialerErr != nil {
 				return nil, fmt.Errorf("failed to create SOCKS5 proxy dialer: %s", err)
 			}
 		} else {
 			proxyDialer, dialerErr = proxy.FromURL(u, proxy.Direct)
 			if dialerErr != nil {
-				return nil, fmt.Errorf("Failed to parse  " + proxyURL + " as a proxy: " + err.Error())
+				return nil, fmt.Errorf("Failed to parse  " + *proxyURL + " as a proxy: " + err.Error())
 			}
 		}
 		conn, err = proxyDialer.Dial(protocol, raddr)

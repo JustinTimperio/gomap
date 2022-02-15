@@ -10,7 +10,7 @@ import (
 // scanIPRange scans an entire cidr range for open ports
 // I am fairly happy with this code since its just iterating
 // over scanIPPorts. Most issues are deeper in the code.
-func scanIPRange(laddr string, proto string, fastscan bool, stealth bool, proxyURL string) (RangeScanResult, error) {
+func scanIPRange(laddr string, proto string, fastscan bool, stealth bool, proxyURL *string) (RangeScanResult, error) {
 	iprange := getLocalRange()
 	hosts := createHostRange(iprange)
 
@@ -27,7 +27,7 @@ func scanIPRange(laddr string, proto string, fastscan bool, stealth bool, proxyU
 }
 
 // scanIPPorts scans a list of ports on <hostname> <protocol>
-func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, stealth bool, proxyURL string) (*IPScanResult, error) {
+func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, stealth bool, proxyURL *string) (*IPScanResult, error) {
 	var results []portResult
 
 	// checks if device is online
@@ -111,7 +111,7 @@ func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, ste
 // scanPort scans a single ip port combo
 // This detection method only works on some types of services
 // but is a reasonable solution for this application
-func scanPort(resultChannel chan<- portResult, protocol, hostname, service string, port int, proxyURL string) {
+func scanPort(resultChannel chan<- portResult, protocol, hostname, service string, port int, proxyURL *string) {
 	result := portResult{Port: port, Service: service}
 	address := hostname + ":" + strconv.Itoa(port)
 
@@ -132,7 +132,7 @@ func scanPort(resultChannel chan<- portResult, protocol, hostname, service strin
 // scanPortSyn scans a single ip port combo using a syn-ack
 // This detection method again only works on some types of services
 // but is a reasonable solution for this application
-func scanPortSyn(resultChannel chan<- portResult, protocol, hostname, service string, port int, laddr string, proxyURL string) {
+func scanPortSyn(resultChannel chan<- portResult, protocol, hostname, service string, port int, laddr string, proxyURL *string) {
 	result := portResult{Port: port, Service: service}
 	ack := make(chan bool, 1)
 

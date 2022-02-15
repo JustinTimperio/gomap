@@ -54,7 +54,7 @@ type tcpOption struct {
 type RangeScanResult []*IPScanResult
 
 // ScanIP scans a single IP for open ports
-func ScanIP(hostname string, proto string, fastscan bool, stealth bool, proxyURL string) (*IPScanResult, error) {
+func ScanIP(hostname string, proto string, fastscan bool, stealth bool, proxyURL *string) (*IPScanResult, error) {
 	laddr, err := getLocalIP()
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func ScanIP(hostname string, proto string, fastscan bool, stealth bool, proxyURL
 }
 
 // ScanRange scans every address on a CIDR for open ports
-func ScanRange(proto string, fastscan bool, stealth bool, proxyURL string) (RangeScanResult, error) {
+func ScanRange(proto string, fastscan bool, stealth bool, proxyURL *string) (RangeScanResult, error) {
 	laddr, err := getLocalIP()
 	if err != nil {
 		return nil, err

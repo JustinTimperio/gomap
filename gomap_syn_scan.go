@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func sendSyn(laddr string, raddr string, sport uint16, dport uint16, proxyURL string) error {
+func sendSyn(laddr string, raddr string, sport uint16, dport uint16, proxyURL *string) error {
 	// Create TCP packet struct and header
 	op := []tcpOption{
 		{
