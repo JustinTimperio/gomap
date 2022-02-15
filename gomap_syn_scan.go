@@ -3,14 +3,10 @@ package gomap
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"math/rand"
 	"net"
-	"net/url"
 	"strconv"
 	"strings"
-
-	"golang.org/x/net/proxy"
 )
 
 func sendSyn(laddr string, raddr string, sport uint16, dport uint16, proxyURL string) error {
@@ -37,40 +33,7 @@ func sendSyn(laddr string, raddr string, sport uint16, dport uint16, proxyURL st
 		UrgentPointer: 0,
 	}
 
-	var conn net.Conn
-	var err error
-	var proxyDialer proxy.Dialer
-
-	// Connect to network interface to send packet
-	// use proxy dialer if proxyURL string is not empty
-	if len(proxyURL) > 0 {
-		u, uErr := url.Parse(proxyURL)
-		pw, _ := u.User.Password()
-
-		auth := &proxy.Auth{
-			User:     u.User.Username(),
-			Password: pw,
-		}
-		if uErr != nil {
-			return fmt.Errorf("failed to obtain proxy dialer: %v", err)
-		}
-		// create a proxy dialer for SOCKS5 proxy
-		if u.Scheme == "socks5" {
-			proxyDialer, err = proxy.SOCKS5("ip4:tcp", raddr, auth, proxy.Direct)
-			if err != nil {
-				return fmt.Errorf("failed to create SOCKS5 proxy dialer: %s", err)
-			}
-		} else {
-			proxyDialer, err = proxy.FromURL(u, proxy.Direct)
-			if err != nil {
-				return fmt.Errorf("Failed to parse  " + proxyURL + " as a proxy: " + err.Error())
-			}
-		}
-		conn, err = proxyDialer.Dial("ip4:tcp", raddr)
-	} else {
-		conn, err = net.Dial("ip4:tcp", raddr)
-	}
-
+	conn, err := dialTarget(proxyURL, raddr, "ip4:tcp")
 	if err != nil {
 		return err
 	}

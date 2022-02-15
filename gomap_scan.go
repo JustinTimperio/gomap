@@ -3,11 +3,8 @@ package gomap
 import (
 	"fmt"
 	"net"
-	"net/url"
 	"strconv"
 	"time"
-
-	"golang.org/x/net/proxy"
 )
 
 // scanIPRange scans an entire cidr range for open ports
@@ -117,40 +114,9 @@ func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, ste
 func scanPort(resultChannel chan<- portResult, protocol, hostname, service string, port int, proxyURL string) {
 	result := portResult{Port: port, Service: service}
 	address := hostname + ":" + strconv.Itoa(port)
-	var conn net.Conn
-	var err error
-	var proxyDialer proxy.Dialer
-	// use proxy dialer if proxyURL string is not empty
-	if len(proxyURL) > 0 {
-		u, uErr := url.Parse(proxyURL)
-		pw, _ := u.User.Password()
 
-		auth := &proxy.Auth{
-			User:     u.User.Username(),
-			Password: pw,
-		}
-		if uErr != nil {
-			fmt.Println("Failed to obtain proxy dialer: ", err)
-			return
-		}
-		// create a proxy dialer for SOCKS5 proxy
-		if u.Scheme == "socks5" {
-			proxyDialer, err = proxy.SOCKS5("ip4:tcp", address, auth, proxy.Direct)
-			if err != nil {
-				fmt.Printf("failed to create SOCKS5 proxy dialer: %s\n", err)
-				return
-			}
-		} else {
-			proxyDialer, err = proxy.FromURL(u, proxy.Direct)
-			if err != nil {
-				fmt.Printf("Failed to parse  " + proxyURL + " as a proxy: " + err.Error())
-				return
-			}
-		}
-		conn, err = proxyDialer.Dial(protocol, address)
-	} else {
-		conn, err = net.DialTimeout(protocol, address, 3*time.Second)
-	}
+	// dial target address
+	conn, err := dialTarget(proxyURL, address, protocol)
 
 	if err != nil {
 		result.State = false

@@ -40,7 +40,7 @@ func main() {
 		proto    = "tcp"
 		fastscan = true
 		syn      = false
-                proxy = "socks5://127.0.0.1:1080"
+                proxy    = ""
 	)
 
 	scan, err := gomap.ScanRange(proto, fastscan, syn, proxy)
@@ -99,10 +99,10 @@ func main() {
 		syn      = true
 		proto    = "tcp"
 		ip       = "192.168.1.120"
-                proxy = "socks5://127.0.0.1:1080"
+                proxy    = ""
 	)
 
-	scan, err := gomap.ScanIP(ip, proto, fastscan, syn, "")
+	scan, err := gomap.ScanIP(ip, proto, fastscan, syn, proxy)
 	if err != nil {
 		// handle error
 	}
