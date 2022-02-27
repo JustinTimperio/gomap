@@ -10,13 +10,13 @@ import (
 // scanIPRange scans an entire cidr range for open ports
 // I am fairly happy with this code since its just iterating
 // over scanIPPorts. Most issues are deeper in the code.
-func scanIPRange(laddr string, proto string, fastscan bool, stealth bool, proxyURL *string) (RangeScanResult, error) {
+func scanIPRange(laddr string, proto string, fastscan bool, stealth bool, scanOption *ScanOption) (RangeScanResult, error) {
 	iprange := getLocalRange()
 	hosts := createHostRange(iprange)
 
 	var results RangeScanResult
 	for _, h := range hosts {
-		scan, err := scanIPPorts(h, laddr, proto, fastscan, stealth, proxyURL)
+		scan, err := scanIPPorts(h, laddr, proto, fastscan, stealth, scanOption)
 		if err != nil {
 			continue
 		}
@@ -27,7 +27,7 @@ func scanIPRange(laddr string, proto string, fastscan bool, stealth bool, proxyU
 }
 
 // scanIPPorts scans a list of ports on <hostname> <protocol>
-func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, stealth bool, proxyURL *string) (*IPScanResult, error) {
+func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, stealth bool, scanOption *ScanOption) (*IPScanResult, error) {
 	var results []portResult
 
 	// checks if device is online
@@ -78,9 +78,9 @@ func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, ste
 		for port := range in {
 			if service, ok := list[port]; ok {
 				if stealth {
-					scanPortSyn(resultChannel, proto, hostname, service, port, laddr, proxyURL)
+					scanPortSyn(resultChannel, proto, hostname, service, port, laddr, scanOption)
 				} else {
-					scanPort(resultChannel, proto, hostname, service, port, proxyURL)
+					scanPort(resultChannel, proto, hostname, service, port, scanOption)
 				}
 			}
 		}
@@ -111,12 +111,12 @@ func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, ste
 // scanPort scans a single ip port combo
 // This detection method only works on some types of services
 // but is a reasonable solution for this application
-func scanPort(resultChannel chan<- portResult, protocol, hostname, service string, port int, proxyURL *string) {
+func scanPort(resultChannel chan<- portResult, protocol, hostname, service string, port int, scanOption *ScanOption) {
 	result := portResult{Port: port, Service: service}
 	address := hostname + ":" + strconv.Itoa(port)
 
 	// dial target address
-	conn, err := dialTarget(proxyURL, address, protocol)
+	conn, err := dialTarget(scanOption, address, protocol)
 
 	if err != nil {
 		result.State = false
@@ -132,12 +132,12 @@ func scanPort(resultChannel chan<- portResult, protocol, hostname, service strin
 // scanPortSyn scans a single ip port combo using a syn-ack
 // This detection method again only works on some types of services
 // but is a reasonable solution for this application
-func scanPortSyn(resultChannel chan<- portResult, protocol, hostname, service string, port int, laddr string, proxyURL *string) {
+func scanPortSyn(resultChannel chan<- portResult, protocol, hostname, service string, port int, laddr string, scanOption *ScanOption) {
 	result := portResult{Port: port, Service: service}
 	ack := make(chan bool, 1)
 
 	go recvSynAck(laddr, hostname, uint16(port), ack)
-	sendSyn(laddr, hostname, uint16(random(10000, 65535)), uint16(port), proxyURL)
+	sendSyn(laddr, hostname, uint16(random(10000, 65535)), uint16(port), scanOption)
 
 	select {
 	case r := <-ack:

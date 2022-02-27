@@ -83,14 +83,14 @@ func getLocalIP() (string, error) {
 	return "", fmt.Errorf("No IP Found")
 }
 
-func dialTarget(proxyURL *string, raddr, protocol string) (net.Conn, error) {
+func dialTarget(scanOption *ScanOption, raddr, protocol string) (net.Conn, error) {
 	var conn net.Conn
 	var err error
 	var dialerErr error
 	var proxyDialer proxy.Dialer
 
-	if proxyURL != nil {
-		u, uErr := url.Parse(*proxyURL)
+	if scanOption != nil && scanOption.ProxyURL != nil {
+		u, uErr := url.Parse(*scanOption.ProxyURL)
 		pw, _ := u.User.Password()
 
 		auth := &proxy.Auth{
@@ -109,7 +109,7 @@ func dialTarget(proxyURL *string, raddr, protocol string) (net.Conn, error) {
 		} else {
 			proxyDialer, dialerErr = proxy.FromURL(u, proxy.Direct)
 			if dialerErr != nil {
-				return nil, fmt.Errorf("Failed to parse  " + *proxyURL + " as a proxy: " + err.Error())
+				return nil, fmt.Errorf("Failed to parse  " + *scanOption.ProxyURL + " as a proxy: " + err.Error())
 			}
 		}
 		conn, err = proxyDialer.Dial(protocol, raddr)

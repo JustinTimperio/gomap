@@ -41,9 +41,10 @@ func main() {
 		proto    = "tcp"
 		fastscan = true
 		syn      = false
-                // optionally pass in the pointer of proxy URL i.e. &proxy if not set to nil
                 // proxy    = "socks5://127.0.0.1:1080"
 	)
+        // optionally pass in the pointer of proxy URL i.e. &proxy if not set to nil
+        // scanOption := &gomap.ScanOption{ProxyURL: &proxy}
 
 	scan, err := gomap.ScanRange(proto, fastscan, syn, nil)
 	if err != nil {
@@ -101,10 +102,11 @@ func main() {
 		syn      = true
 		proto    = "tcp"
 		ip       = "192.168.1.120"
-                // optionally pass in the pointer of proxy URL i.e. &proxy if not set to nil
                 // proxy    = "socks5://127.0.0.1:1080"
 	)
-
+        
+        // optionally pass in the pointer of proxy URL i.e. &proxy if not set to nil
+        // scanOption := &gomap.ScanOption{ProxyURL: &proxy}
 	scan, err := gomap.ScanIP(ip, proto, fastscan, syn, nil)
 	if err != nil {
 		// handle error

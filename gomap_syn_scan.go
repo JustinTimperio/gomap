@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func sendSyn(laddr string, raddr string, sport uint16, dport uint16, proxyURL *string) error {
+func sendSyn(laddr string, raddr string, sport uint16, dport uint16, scanOption *ScanOption) error {
 	// Create TCP packet struct and header
 	op := []tcpOption{
 		{
@@ -33,7 +33,7 @@ func sendSyn(laddr string, raddr string, sport uint16, dport uint16, proxyURL *s
 		UrgentPointer: 0,
 	}
 
-	conn, err := dialTarget(proxyURL, raddr, "ip4:tcp")
+	conn, err := dialTarget(scanOption, raddr, "ip4:tcp")
 	if err != nil {
 		return err
 	}
