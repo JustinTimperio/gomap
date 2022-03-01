@@ -18,6 +18,7 @@ Gomap is a fully self-contained nmap like module for Golang. Unlike other projec
   - Fast and detailed scanning for common ports
   - Pure Go with zero dependencies
   - Easily integrated into other projects
+  - HTTP/SOCKS5 Proxy Support
 
 ## Upcoming Features
   - CIDR range size detection
@@ -40,9 +41,12 @@ func main() {
 		proto    = "tcp"
 		fastscan = true
 		syn      = false
+                // proxy    = "socks5://127.0.0.1:1080"
 	)
+        // optionally pass in the pointer of proxy URL i.e. &proxy if not set to nil
+        // scanOption := &gomap.ScanOption{ProxyURL: &proxy}
 
-	scan, err := gomap.ScanRange(proto, fastscan, syn)
+	scan, err := gomap.ScanRange(proto, fastscan, syn, nil)
 	if err != nil {
 		// handle error
 	}
@@ -98,9 +102,12 @@ func main() {
 		syn      = true
 		proto    = "tcp"
 		ip       = "192.168.1.120"
+                // proxy    = "socks5://127.0.0.1:1080"
 	)
-
-	scan, err := gomap.ScanIP(ip, proto, fastscan, syn)
+        
+        // optionally pass in the pointer of proxy URL i.e. &proxy if not set to nil
+        // scanOption := &gomap.ScanOption{ProxyURL: &proxy}
+	scan, err := gomap.ScanIP(ip, proto, fastscan, syn, nil)
 	if err != nil {
 		// handle error
 	}

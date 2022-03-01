@@ -12,10 +12,12 @@ func TestMain(m *testing.M) {
 		proto    = "tcp"
 		fastscan = true
 		stealth  = false
+		// proxy    = "socks5://127.0.0.1:1080"
 	)
+	// scanOption := &gomap.ScanOption{ProxyURL: &proxy}
 
-	// results, err := gomap.ScanIP("192.168.1.1", proto, fastscan, stealth)
-	results, err := gomap.ScanRange(proto, fastscan, stealth)
+	results, err := gomap.ScanIP("127.0.0.1", proto, fastscan, stealth, nil)
+	// results, err := gomap.ScanRange(proto, fastscan, stealth, &proxy)
 	if err != nil {
 		panic(err)
 	} else {

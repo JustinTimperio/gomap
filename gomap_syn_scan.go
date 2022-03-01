@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func sendSyn(laddr string, raddr string, sport uint16, dport uint16) error {
+func sendSyn(laddr string, raddr string, sport uint16, dport uint16, scanOption *ScanOption) error {
 	// Create TCP packet struct and header
 	op := []tcpOption{
 		{
@@ -33,8 +33,7 @@ func sendSyn(laddr string, raddr string, sport uint16, dport uint16) error {
 		UrgentPointer: 0,
 	}
 
-	// Connect to network interface to send packet
-	conn, err := net.Dial("ip4:tcp", raddr)
+	conn, err := dialTarget(scanOption, raddr, "ip4:tcp")
 	if err != nil {
 		return err
 	}

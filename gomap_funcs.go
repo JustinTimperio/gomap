@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"strings"
+
+	"golang.org/x/net/proxy"
 )
 
 func canSocketBind(laddr string) bool {
@@ -78,4 +81,47 @@ func getLocalIP() (string, error) {
 		}
 	}
 	return "", fmt.Errorf("No IP Found")
+}
+
+func dialTarget(scanOption *ScanOption, raddr, protocol string) (net.Conn, error) {
+	var conn net.Conn
+	var err error
+	var dialerErr error
+	var proxyDialer proxy.Dialer
+
+	if scanOption != nil && scanOption.ProxyURL != nil {
+		u, uErr := url.Parse(*scanOption.ProxyURL)
+		pw, _ := u.User.Password()
+
+		auth := &proxy.Auth{
+			User:     u.User.Username(),
+			Password: pw,
+		}
+		if uErr != nil {
+			return nil, fmt.Errorf("failed to obtain proxy dialer: %v", err)
+		}
+		// create a proxy dialer for SOCKS5 proxy
+		if u.Scheme == "socks5" {
+			proxyDialer, dialerErr = proxy.SOCKS5(protocol, u.Host, auth, proxy.Direct)
+			if dialerErr != nil {
+				return nil, fmt.Errorf("failed to create SOCKS5 proxy dialer: %s", err)
+			}
+		} else {
+			proxyDialer, dialerErr = proxy.FromURL(u, proxy.Direct)
+			if dialerErr != nil {
+				return nil, fmt.Errorf("Failed to parse  " + *scanOption.ProxyURL + " as a proxy: " + err.Error())
+			}
+		}
+		conn, err = proxyDialer.Dial(protocol, raddr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to dial %s: %s via proxy", raddr, err)
+		}
+	} else {
+		conn, err = net.Dial(protocol, raddr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to dial %s: %s", raddr, err)
+		}
+	}
+
+	return conn, nil
 }
