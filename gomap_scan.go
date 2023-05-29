@@ -1,22 +1,26 @@
 package gomap
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 )
 
 // scanIPRange scans an entire cidr range for open ports
 // I am fairly happy with this code since its just iterating
 // over scanIPPorts. Most issues are deeper in the code.
-func scanIPRange(laddr string, proto string, fastscan bool, stealth bool) (RangeScanResult, error) {
+func scanIPRange(
+	ctx context.Context, laddr string, proto string, fastscan bool, stealth bool,
+) (RangeScanResult, error) {
 	iprange := getLocalRange()
 	hosts := createHostRange(iprange)
 
 	var results RangeScanResult
 	for _, h := range hosts {
-		scan, err := scanIPPorts(h, laddr, proto, fastscan, stealth)
+		scan, err := scanIPPorts(ctx, h, laddr, proto, fastscan, stealth)
 		if err != nil {
 			continue
 		}
@@ -27,9 +31,9 @@ func scanIPRange(laddr string, proto string, fastscan bool, stealth bool) (Range
 }
 
 // scanIPPorts scans a list of ports on <hostname> <protocol>
-func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, stealth bool) (*IPScanResult, error) {
-	var results []portResult
-
+func scanIPPorts(
+	ctx context.Context, hostname string, laddr string, proto string, fastscan bool, stealth bool,
+) (*IPScanResult, error) {
 	// checks if device is online
 	addr, err := net.LookupIP(hostname)
 	if err != nil {
@@ -53,10 +57,15 @@ func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, ste
 	// Start prepping channels and vars for worker pool
 	in := make(chan int)
 	go func() {
+		defer close(in)
+
 		for i := 0; i <= 65535; i++ {
-			in <- i
+			select {
+			case <-ctx.Done():
+				return
+			case in <- i:
+			}
 		}
-		close(in)
 	}()
 
 	var list map[int]string
@@ -73,33 +82,51 @@ func scanIPPorts(hostname string, laddr string, proto string, fastscan bool, ste
 	tasks := len(list)
 
 	// Create results channel and worker function
-	resultChannel := make(chan portResult, tasks)
+	resultChannel := make(chan portResult)
+
+	var wg sync.WaitGroup
 	worker := func() {
-		for port := range in {
-			if service, ok := list[port]; ok {
-				if stealth {
-					scanPortSyn(resultChannel, proto, hostname, service, port, laddr)
-				} else {
-					scanPort(resultChannel, proto, hostname, service, port)
+		defer wg.Done()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case port, ok := <-in:
+				if !ok {
+					return
+				}
+
+				if service, ok := list[port]; ok {
+					if stealth {
+						scanPortSyn(resultChannel, proto, hostname, service, port, laddr)
+					} else {
+						scanPort(resultChannel, proto, hostname, service, port)
+					}
 				}
 			}
+
 		}
 	}
 
 	// Deploy a pool of workers
 	for i := 0; i < depth; i++ {
+		wg.Add(1)
 		go worker()
 	}
 
-	// Combines all results from resultChannel and return a IPScanResult
-	for result := range resultChannel {
-		results = append(results, result)
-		fmt.Printf("\033[2K\rHost: %s | Ports Scanned %d/%d", hostname, len(results), tasks)
-
-		if len(results) == tasks {
-			close(resultChannel)
+	var results []portResult
+	go func() {
+		// Combines all results from resultChannel and return a IPScanResult
+		for result := range resultChannel {
+			results = append(results, result)
+			fmt.Printf("\033[2K\rHost: %s | Ports Scanned %d/%d", hostname, len(results), tasks)
 		}
-	}
+	}()
+
+	wg.Wait()
+
+	close(resultChannel)
 
 	return &IPScanResult{
 		Hostname: hname[0],
