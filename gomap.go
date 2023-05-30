@@ -59,7 +59,7 @@ func ScanIP(hostname string, proto string, fastscan bool, stealth bool) (*IPScan
 	return ScanIPCtx(context.Background(), hostname, proto, fastscan, stealth)
 }
 
-// ScanIP scans a single IP for open ports
+// ScanIPCtx scans a single IP for open ports
 func ScanIPCtx(
 	ctx context.Context, hostname string, proto string, fastscan bool, stealth bool,
 ) (*IPScanResult, error) {
