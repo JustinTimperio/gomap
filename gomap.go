@@ -2,6 +2,7 @@ package gomap
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -55,32 +56,47 @@ type RangeScanResult []*IPScanResult
 
 // ScanIP scans a single IP for open ports
 func ScanIP(hostname string, proto string, fastscan bool, stealth bool) (*IPScanResult, error) {
+	return ScanIPCtx(context.Background(), hostname, proto, fastscan, stealth)
+}
+
+// ScanIPCtx scans a single IP for open ports
+func ScanIPCtx(
+	ctx context.Context, hostname string, proto string, fastscan bool, stealth bool,
+) (*IPScanResult, error) {
 	laddr, err := getLocalIP()
 	if err != nil {
 		return nil, err
 	}
 
 	if stealth {
-		if canSocketBind(laddr) == false {
+		if !canSocketBind(laddr) {
 			return nil, fmt.Errorf("socket: operation not permitted")
 		}
 	}
-	return scanIPPorts(hostname, laddr, proto, fastscan, stealth)
+
+	return scanIPPorts(ctx, hostname, laddr, proto, fastscan, stealth)
 }
 
 // ScanRange scans every address on a CIDR for open ports
 func ScanRange(proto string, fastscan bool, stealth bool) (RangeScanResult, error) {
+	return ScanRangeCtx(context.Background(), proto, fastscan, stealth)
+}
+
+// ScanRangeCtx scans every address on a CIDR for open ports
+func ScanRangeCtx(
+	ctx context.Context, proto string, fastscan bool, stealth bool,
+) (RangeScanResult, error) {
 	laddr, err := getLocalIP()
 	if err != nil {
 		return nil, err
 	}
 
 	if stealth {
-		if canSocketBind(laddr) == false {
+		if !canSocketBind(laddr) {
 			return nil, fmt.Errorf("socket: operation not permitted")
 		}
 	}
-	return scanIPRange(laddr, proto, fastscan, stealth)
+	return scanIPRange(ctx, laddr, proto, fastscan, stealth)
 }
 
 // String with the results of a single scanned IP
@@ -146,7 +162,7 @@ func (results RangeScanResult) String() string {
 func (results *IPScanResult) Json() (string, error) {
 	var ipdata JsonIP
 	fmt.Println(results.IP)
-	ipdata.IP = fmt.Sprintf("%s", results.IP[len(results.IP)-1])
+	ipdata.IP = results.IP[len(results.IP)-1].String()
 	ipdata.Hostname = results.Hostname
 
 	active := false
@@ -180,7 +196,7 @@ func (results RangeScanResult) Json() (string, error) {
 
 	for _, r := range results {
 		var ipdata JsonIP
-		ipdata.IP = fmt.Sprintf("%s", r.IP[len(r.IP)-1])
+		ipdata.IP = r.IP[len(r.IP)-1].String()
 		ipdata.Hostname = r.Hostname
 
 		active := false
